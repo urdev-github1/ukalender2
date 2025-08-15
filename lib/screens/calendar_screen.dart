@@ -134,6 +134,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
      _saveUserEvents();
   }
 
+  // =======================================================================
+  // NEUE METHODE: Löscht einen Termin.
+  // =======================================================================
+  void _deleteEvent(Event event) {
+    // Feiertage können nicht gelöscht werden.
+    if (event.isHoliday) return;
+  
+    final day = DateTime.utc(event.date.year, event.date.month, event.date.day);
+    
+    setState(() {
+      // Entfernt das Event aus der Haupt-Map.
+      _events[day]?.remove(event);
+      // Wenn für diesen Tag keine Events mehr übrig sind, wird der ganze Eintrag entfernt.
+      if (_events[day]?.isEmpty ?? false) {
+        _events.remove(day);
+      }
+      // Aktualisiert die Liste der für den ausgewählten Tag angezeigten Events.
+      _selectedEvents = _getEventsForDay(_selectedDay!);
+    });
+  
+    // Speichert die Änderungen (ohne das gelöschte Event).
+    _saveUserEvents();
+  
+    // HINWEIS: Das Stornieren von geplanten Benachrichtigungen ist hier nicht
+    // implementiert, da das Event-Modell aktuell keine eindeutige ID speichert,
+    // die für die Stornierung benötigt würde.
+  }
+
   // Eine Hilfsmethode, die nur die Termine (nicht die Feiertage)
   // sammelt und im lokalen Speicher ablegt.
   void _saveUserEvents() {
@@ -184,9 +212,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // =======================================================================
-  // MODIFIZIERTE METHODE: Diese Methode startet den Exportvorgang.
-  // =======================================================================
+  // Diese Methode startet den Exportvorgang.
   void _exportEvents() async {
     // Zuerst sammeln wir alle benutzerdefinierten Termine, genau wie zuvor.
     final allUserEvents = _events.values
@@ -247,8 +273,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         context: context,
         firstDate: DateTime(2020),
         lastDate: DateTime(2030),
-        // Optional: Sprache des Pickers auf Deutsch setzen
-        //locale: const Locale('de', 'DE'), 
         confirmText: 'Exportieren', 
         cancelText: 'ABBRECHEN',
         helpText: 'ZEITRAUM FÜR EXPORT AUSWÄHLEN',
@@ -261,17 +285,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       // Filtere die Termine basierend auf dem ausgewählten Zeitraum.
       eventsToExport = allUserEvents.where((event) {
-        // Wir normalisieren die Termindaten, um Zeitkomponenten zu ignorieren.
         final eventDate = DateTime.utc(event.date.year, event.date.month, event.date.day);
         final startDate = DateTime.utc(dateRange.start.year, dateRange.start.month, dateRange.start.day);
         final endDate = DateTime.utc(dateRange.end.year, dateRange.end.month, dateRange.end.day);
         
-        // Prüfung, ob der Termin im Bereich liegt (inklusive Start- und Enddatum).
         return !eventDate.isBefore(startDate) && !eventDate.isAfter(endDate);
       }).toList();
     }
     
-    // Prüfen, ob nach der Filterung noch Termine übrig sind.
     if (eventsToExport.isEmpty) {
       if (!mounted) return; // Frühzeitiger Abbruch.
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,7 +304,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    // Ruft den Service auf, der die .ics-Datei erstellt und den Teilen-Dialog öffnet.
     await _calendarService.exportEvents(eventsToExport);
   }
 
@@ -292,7 +312,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     // Das Scaffold ist die Grundstruktur des Bildschirms.
     return Scaffold(
-      // MODIFIZIERT: Die AppBar wird um einen weiteren Button in der 'actions'-Liste erweitert.
       appBar: AppBar(
         title: const Text('Terminkalender'),
         // Fügt Aktionen (Buttons) auf der rechten Seite der AppBar hinzu.
@@ -302,7 +321,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             tooltip: 'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
             onPressed: _importEvents, // Ruft die Import-Methode auf.
           ),
-          // NEU: Der Button für den Export.
           IconButton(
             icon: const Icon(Icons.output), // Icon für den Export.
             tooltip: 'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
@@ -332,8 +350,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             },
             onPageChanged: (focusedDay) {
               _focusedDay = focusedDay;
-              // Hier könnte man zukünftig Feiertage für das neue Jahr nachladen,
-              // falls die Performance optimiert werden muss.
             },
             calendarStyle: const CalendarStyle(
               todayDecoration: BoxDecoration(
@@ -361,23 +377,81 @@ class _CalendarScreenState extends State<CalendarScreen> {
           const SizedBox(height: 8.0),
           // `Expanded` sorgt dafür, dass die ListView den restlichen verfügbaren Platz einnimmt.
           Expanded(
+            // =======================================================================
+            // MODIFIZIERTER TEIL: ListView.builder mit Dismissible
+            // =======================================================================
             child: ListView.builder(
               itemCount: _selectedEvents.length,
               itemBuilder: (context, index) {
                 final event = _selectedEvents[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(),
-                    borderRadius: BorderRadius.circular(12.0),
-                    color: event.color.withAlpha(77),
+                // Das Dismissible-Widget ermöglicht das Wegwischen von Elementen.
+                return Dismissible(
+                  // Ein eindeutiger Schlüssel ist für das Dismissible zwingend erforderlich.
+                  key: Key('${event.title}_${event.date.toIso8601String()}_$index'),
+                  
+                  // Legt die Wischrichtung fest. Feiertage können nicht gelöscht werden.
+                  direction: event.isHoliday 
+                    ? DismissDirection.none 
+                    : DismissDirection.endToStart,
+
+                  // confirmDismiss wird vor dem endgültigen Löschen aufgerufen,
+                  // um eine Bestätigung vom Benutzer einzuholen.
+                  confirmDismiss: (direction) async {
+                    return await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Löschen bestätigen'),
+                          content: const Text('Möchten Sie diesen Termin wirklich löschen?'),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Abbrechen'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('Löschen'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+
+                  // Wird aufgerufen, nachdem das Element nach Bestätigung entfernt wurde.
+                  onDismissed: (direction) {
+                    _deleteEvent(event);
+                    // Zeigt eine kurze Bestätigung am unteren Bildschirmrand an.
+                    if(mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('"${event.title}" gelöscht')),
+                      );
+                    }
+                  },
+
+                  // Der rote Hintergrund, der beim Wischen sichtbar wird.
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  child: ListTile(
-                    onTap: () => print('${event.title} gedrückt'),
-                    title: Text(event.title),
-                    subtitle: event.description != null && event.description!.isNotEmpty
-                        ? Text(event.description!)
-                        : null,
+                  
+                  // Das eigentliche Listenelement (der Termin).
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                    decoration: BoxDecoration(
+                      border: Border.all(),
+                      borderRadius: BorderRadius.circular(12.0),
+                      color: event.color.withAlpha(77),
+                    ),
+                    child: ListTile(
+                      onTap: () => print('${event.title} gedrückt'),
+                      title: Text(event.title),
+                      subtitle: event.description != null && event.description!.isNotEmpty
+                          ? Text(event.description!)
+                          : null,
+                    ),
                   ),
                 );
               },
@@ -425,7 +499,5 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-// =======================================================================
-// HINZUGEFÜGT: Enum zur besseren Lesbarkeit der Export-Auswahl
-// =======================================================================
+// Enum zur besseren Lesbarkeit der Export-Auswahl
 enum ExportChoice { all, dateRange }
