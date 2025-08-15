@@ -11,8 +11,10 @@ import '../models/event.dart';
 import '../services/holiday_service.dart';
 // Importiert den Bildschirm zum Hinzufügen eines neuen Events.
 import 'add_event_screen.dart';
-// NEU: Importiert den Service für das lokale Speichern und Laden von Events.
+// Importiert den Service für das lokale Speichern und Laden von Events.
 import '../services/storage_service.dart';
+// Importiert den Service für den Import/Export von Kalenderdaten.
+import '../services/calendar_service.dart';
 
 // Definiert ein StatefulWidget, da sich der Zustand des Bildschirms (z.B. ausgewähltes Datum) ändern kann.
 class CalendarScreen extends StatefulWidget {
@@ -39,8 +41,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // Eine Instanz des HolidayService, um Feiertage abzurufen.
   final HolidayService _holidayService = HolidayService();
-  // NEU: Eine Instanz des StorageService, um Termine zu speichern und zu laden.
+  // Eine Instanz des StorageService, um Termine zu speichern und zu laden.
   final StorageService _storageService = StorageService();
+  // Eine Instanz des CalendarService für den Import/Export.
+  final CalendarService _calendarService = CalendarService();
+
 
   @override
   void initState() {
@@ -51,12 +56,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _events = {};
     _selectedEvents = [];
     
-    // NEU: Ruft die Methode auf, die sowohl Feiertage als auch lokal
+    // Ruft die Methode auf, die sowohl Feiertage als auch lokal
     // gespeicherte Termine lädt.
     _loadAllEvents();
   }
 
-  // NEU: Diese Methode kombiniert das Laden von Feiertagen von der API
+  // Diese Methode kombiniert das Laden von Feiertagen von der API
   // und das Laden von benutzerdefinierten Terminen aus dem lokalen Speicher.
   void _loadAllEvents() async {
     // 1. Feiertage von der API für das aktuell fokussierte Jahr abrufen.
@@ -125,11 +130,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
        _selectedEvents = _getEventsForDay(_selectedDay!);
      });
 
-     // NEU: Ruft die Methode auf, um die benutzerdefinierten Events zu speichern.
+     // Ruft die Methode auf, um die benutzerdefinierten Events zu speichern.
      _saveUserEvents();
   }
 
-  // NEU: Eine Hilfsmethode, die nur die Termine (nicht die Feiertage)
+  // Eine Hilfsmethode, die nur die Termine (nicht die Feiertage)
   // sammelt und im lokalen Speicher ablegt.
   void _saveUserEvents() {
     // Erstellt eine flache Liste aller Events und filtert dann nach denen,
@@ -143,12 +148,90 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _storageService.saveEvents(allUserEvents);
   }
 
+  // Diese Methode startet den Importvorgang.
+  void _importEvents() async {
+    // Öffnet den Dateimanager und wartet, bis der Benutzer eine .ics-Datei auswählt.
+    final List<Event> importedEvents = await _calendarService.importEvents();
+  
+    // Prüfen, ob Termine importiert wurden.
+    if (importedEvents.isNotEmpty) {
+      // Jeden importierten Termin über die _addEvent Methode hinzufügen.
+      // Diese kümmert sich um die Aktualisierung des States und das Speichern.
+      for (final event in importedEvents) {
+        _addEvent(event);
+      }
+  
+      // Dem Benutzer eine Rückmeldung geben, dass der Import erfolgreich war.
+      // Der `mounted`-Check ist eine gute Praxis in asynchronen Methoden,
+      // um sicherzustellen, dass der Kontext noch gültig ist.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${importedEvents.length} Termin(e) erfolgreich importiert!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // Optional: Rückmeldung, wenn keine Datei gewählt oder die Datei leer war.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Import abgebrochen oder keine Termine in der Datei gefunden.'),
+          ),
+        );
+      }
+    }
+  }
+
+  // NEU: Diese Methode startet den Exportvorgang.
+  void _exportEvents() async {
+    // Sammelt alle Events und filtert die Feiertage heraus.
+    // Die Logik ist identisch zur `_saveUserEvents`-Methode.
+    final userEvents = _events.values
+        .expand((eventList) => eventList)
+        .where((event) => !event.isHoliday)
+        .toList();
+
+    // Prüfen, ob überhaupt Termine zum Exportieren vorhanden sind.
+    if (userEvents.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Keine eigenen Termine zum Exportieren vorhanden.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return; // Bricht die Methode hier ab.
+    }
+    
+    // Ruft den Service auf, der die .ics-Datei erstellt und den Teilen-Dialog öffnet.
+    await _calendarService.exportEvents(userEvents);
+  }
+
+
   @override
   Widget build(BuildContext context) {
     // Das Scaffold ist die Grundstruktur des Bildschirms.
     return Scaffold(
+      // MODIFIZIERT: Die AppBar wird um einen weiteren Button in der 'actions'-Liste erweitert.
       appBar: AppBar(
         title: const Text('Terminkalender'),
+        // Fügt Aktionen (Buttons) auf der rechten Seite der AppBar hinzu.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.input), // Icon für den Import.
+            tooltip: 'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
+            onPressed: _importEvents, // Ruft die Import-Methode auf.
+          ),
+          // NEU: Der Button für den Export.
+          IconButton(
+            icon: const Icon(Icons.output), // Icon für den Export.
+            tooltip: 'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
+            onPressed: _exportEvents, // Ruft die neue Export-Methode auf.
+          ),
+        ],
       ),
       // Der Hauptinhalt des Bildschirms ist eine Spalte (Column).
       body: Column(
