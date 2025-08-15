@@ -184,30 +184,107 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // NEU: Diese Methode startet den Exportvorgang.
+  // =======================================================================
+  // MODIFIZIERTE METHODE: Diese Methode startet den Exportvorgang.
+  // =======================================================================
   void _exportEvents() async {
-    // Sammelt alle Events und filtert die Feiertage heraus.
-    // Die Logik ist identisch zur `_saveUserEvents`-Methode.
-    final userEvents = _events.values
+    // Zuerst sammeln wir alle benutzerdefinierten Termine, genau wie zuvor.
+    final allUserEvents = _events.values
         .expand((eventList) => eventList)
         .where((event) => !event.isHoliday)
         .toList();
 
     // Prüfen, ob überhaupt Termine zum Exportieren vorhanden sind.
-    if (userEvents.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Keine eigenen Termine zum Exportieren vorhanden.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return; // Bricht die Methode hier ab.
+    if (allUserEvents.isEmpty) {
+      if (!mounted) return; // Frühzeitiger Abbruch, wenn das Widget nicht mehr da ist.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Keine eigenen Termine zum Exportieren vorhanden.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
     
+    // Zeigt den neuen Auswahl-Dialog an.
+    final ExportChoice? choice = await showDialog<ExportChoice>(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: const Text('Welche Termine exportieren?'),
+          children: <Widget>[
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context, ExportChoice.all);
+              },
+              child: const Text('Alle meine Termine'),
+            ),
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context, ExportChoice.dateRange);
+              },
+              child: const Text('Zeitraum auswählen...'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Wenn das Widget nach dem Dialog nicht mehr gemounted ist, abbrechen.
+    if (!mounted) return;
+
+    // Je nach Auswahl des Benutzers fortfahren.
+    if (choice == null) return; // Benutzer hat den Dialog geschlossen.
+
+    List<Event> eventsToExport;
+
+    if (choice == ExportChoice.all) {
+      // Option 1: Alle Termine verwenden.
+      eventsToExport = allUserEvents;
+    } else {
+      // Option 2: Den DateRangePicker anzeigen.
+      final DateTimeRange? dateRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+        // Optional: Sprache des Pickers auf Deutsch setzen
+        //locale: const Locale('de', 'DE'), 
+        confirmText: 'Exportieren', 
+        cancelText: 'ABBRECHEN',
+        helpText: 'ZEITRAUM FÜR EXPORT AUSWÄHLEN',
+      );
+
+      // Wenn das Widget nach dem DatePicker nicht mehr gemounted ist, abbrechen.
+      if (!mounted) return;
+
+      if (dateRange == null) return; // Benutzer hat den DatePicker abgebrochen.
+
+      // Filtere die Termine basierend auf dem ausgewählten Zeitraum.
+      eventsToExport = allUserEvents.where((event) {
+        // Wir normalisieren die Termindaten, um Zeitkomponenten zu ignorieren.
+        final eventDate = DateTime.utc(event.date.year, event.date.month, event.date.day);
+        final startDate = DateTime.utc(dateRange.start.year, dateRange.start.month, dateRange.start.day);
+        final endDate = DateTime.utc(dateRange.end.year, dateRange.end.month, dateRange.end.day);
+        
+        // Prüfung, ob der Termin im Bereich liegt (inklusive Start- und Enddatum).
+        return !eventDate.isBefore(startDate) && !eventDate.isAfter(endDate);
+      }).toList();
+    }
+    
+    // Prüfen, ob nach der Filterung noch Termine übrig sind.
+    if (eventsToExport.isEmpty) {
+      if (!mounted) return; // Frühzeitiger Abbruch.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Im ausgewählten Zeitraum wurden keine Termine gefunden.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     // Ruft den Service auf, der die .ics-Datei erstellt und den Teilen-Dialog öffnet.
-    await _calendarService.exportEvents(userEvents);
+    await _calendarService.exportEvents(eventsToExport);
   }
 
 
@@ -347,3 +424,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
+
+// =======================================================================
+// HINZUGEFÜGT: Enum zur besseren Lesbarkeit der Export-Auswahl
+// =======================================================================
+enum ExportChoice { all, dateRange }

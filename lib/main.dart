@@ -2,6 +2,8 @@
 
 // Importiert die grundlegenden Material Design Widgets von Flutter.
 import 'package:flutter/material.dart';
+// NEU: Importiert die Lokalisierungs-Delegates, die wir benötigen.
+import 'package:flutter_localizations/flutter_localizations.dart';
 // Importiert Funktionen zur Initialisierung der Datumsformatierung für verschiedene Sprachen.
 import 'package:intl/date_symbol_data_local.dart';
 // Importiert den Hauptbildschirm der Anwendung, die Kalenderansicht.
@@ -47,9 +49,29 @@ class MyApp extends StatelessWidget {
         // Setzt die primäre Farbpalette der App auf Blautöne.
         primarySwatch: Colors.blue,
       ),
+      
+      // --- HINZUGEFÜGTE KONFIGURATION FÜR LOKALISIERUNG ---
+
+      // Dies sind die "Delegierten", die die eigentliche Übersetzungsarbeit leisten.
+      localizationsDelegates: const [
+        // Stellt die Übersetzungen für die Material-Widgets bereit (z.B. "OK" in Dialogen).
+        GlobalMaterialLocalizations.delegate,
+        // Stellt die grundlegende Textausrichtung (links-nach-rechts etc.) bereit.
+        GlobalWidgetsLocalizations.delegate,
+        // Stellt die Übersetzungen für die Cupertino-Widgets (iOS-Stil) bereit.
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
+      supportedLocales: const [
+        Locale('de', 'DE'), // Deutsch
+        Locale('en', 'US'), // Englisch (als Beispiel)
+      ],
+
       // Stellt die Sprache und Region der App fest auf Deutsch (Deutschland) ein.
-      // Dies beeinflusst die Sprache von eingebauten UI-Elementen.
       locale: const Locale('de', 'DE'),
+      
+      // --- ENDE DER HINZUGEFÜGTEN KONFIGURATION ---
+
       // Das Widget, das als Startbildschirm der App angezeigt wird.
       home: const CalendarScreen(),
     );
