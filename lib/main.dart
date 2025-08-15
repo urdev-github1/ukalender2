@@ -1,35 +1,56 @@
 // lib/main.dart
 
+// Importiert die grundlegenden Material Design Widgets von Flutter.
 import 'package:flutter/material.dart';
+// Importiert Funktionen zur Initialisierung der Datumsformatierung für verschiedene Sprachen.
 import 'package:intl/date_symbol_data_local.dart';
+// Importiert den Hauptbildschirm der Anwendung, die Kalenderansicht.
 import 'screens/calendar_screen.dart';
+// Importiert den Service, der für das Anzeigen von Benachrichtigungen zuständig ist.
 import 'services/notification_service.dart';
 
+// Die main-Funktion ist der Haupteinstiegspunkt für jede Flutter-Anwendung.
+// 'async' wird verwendet, da wir auf das Ergebnis von asynchronen Operationen warten ('await').
 void main() async {
-  // Sicherstellen, dass die Widgets initialisiert sind, bevor Services aufgerufen werden
+  // Stellt sicher, dass die Flutter-Engine initialisiert ist, bevor auf Plugins
+  // oder Services zugegriffen wird. Dies ist notwendig, wenn die main-Funktion asynchron ist.
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Lokalisierungsdaten für intl (z.B. für deutsche Monatsnamen) laden
+  // Lädt und initialisiert die Lokalisierungsdaten für die Datumsformatierung.
+  // 'de_DE' sorgt dafür, dass Monatsnamen, Wochentage etc. auf Deutsch angezeigt werden.
   await initializeDateFormatting('de_DE', null);
   
-  // Benachrichtigungs-Service initialisieren
+  // Erstellt eine Instanz des NotificationService und ruft dessen init-Methode auf.
+  // Dies initialisiert die Einstellungen für lokale Benachrichtigungen.
   await NotificationService().init();
   
+  // Startet die Flutter-Anwendung mit dem MyApp-Widget als Wurzel-Widget.
   runApp(const MyApp());
 }
 
+// MyApp ist das Haupt-Widget (Wurzel-Widget) der gesamten Anwendung.
+// Es ist ein StatelessWidget, da sich sein eigener Zustand nicht ändert.
 class MyApp extends StatelessWidget {
+  // Der Konstruktor für das MyApp-Widget.
   const MyApp({super.key});
 
+  // Die build-Methode beschreibt, wie das Widget auf dem Bildschirm dargestellt wird.
   @override
   Widget build(BuildContext context) {
+    // MaterialApp ist ein grundlegendes Widget, das viele für Material Design
+    // typische Funktionen bereitstellt (z.B. Navigation, Theming).
     return MaterialApp(
+      // Der Titel der App, der z.B. im Task-Manager des Betriebssystems angezeigt wird.
       title: 'Flutter Terminkalender',
+      // Definiert das visuelle Thema der App.
       theme: ThemeData(
+        // Setzt die primäre Farbpalette der App auf Blautöne.
         primarySwatch: Colors.blue,
       ),
-      // Setzt die Locale auf Deutsch
+      // Stellt die Sprache und Region der App fest auf Deutsch (Deutschland) ein.
+      // Dies beeinflusst die Sprache von eingebauten UI-Elementen.
       locale: const Locale('de', 'DE'),
+      // Das Widget, das als Startbildschirm der App angezeigt wird.
       home: const CalendarScreen(),
     );
   }
