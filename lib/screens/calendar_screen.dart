@@ -35,11 +35,21 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  // MODIFIZIERT: Getrennte Listen für eine saubere Zustandsverwaltung
+  List<Event> _userEvents = [];
+  List<Event> _holidays = [];
+
+  // Diese Liste wird immer die Kombination aus den beiden oberen sein
   List<Event> _allEvents = [];
+
   late EventDataSource _dataSource;
   final CalendarView _calendarView = CalendarView.month;
-  final DateTime _focusedDay = DateTime.now();
+
+  // MODIFIZIERT: Zustandsvariablen für das aktuelle Datum und Jahr
+  DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  late int _currentYear;
+
   final HolidayService _holidayService = HolidayService();
   final StorageService _storageService = StorageService();
   final CalendarService _calendarService = CalendarService();
@@ -48,23 +58,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    _currentYear = _focusedDay.year;
     _dataSource = EventDataSource([]);
-    _loadAllEvents();
+    _loadInitialData();
   }
 
-  void _loadAllEvents() async {
+  // Lädt die initialen Daten: gespeicherte Termine und Feiertage für das aktuelle Jahr
+  Future<void> _loadInitialData() async {
+    _userEvents = await _storageService.loadEvents();
+    await _loadHolidaysForYear(_currentYear);
+  }
+
+  // Lädt die Feiertage für ein bestimmtes Jahr von der API
+  Future<void> _loadHolidaysForYear(int year) async {
     final stateCode = await _storageService.getSelectedState();
-    //print('Lade Feiertage für: $stateCode');
+    _holidays = await _holidayService.getHolidays(year, stateCode);
+    _rebuildEventListAndRefreshDataSource();
+  }
 
-    final holidays = await _holidayService.getHolidays(
-      _focusedDay.year,
-      stateCode,
-    );
-    final savedEvents = await _storageService.loadEvents();
-
+  // Kombiniert Nutzer-Events und Feiertage und aktualisiert die Kalenderansicht
+  void _rebuildEventListAndRefreshDataSource() {
     setState(() {
-      _allEvents = [...holidays, ...savedEvents];
+      _allEvents = [..._userEvents, ..._holidays];
       _dataSource = EventDataSource(_allEvents);
+      // Ein Reset ist hier am sichersten, da sich potenziell viele Daten (alle Feiertage) ändern
+      _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
   }
 
@@ -74,54 +92,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  // Fügt einen neuen Termin hinzu (nur zur _userEvents-Liste)
   void _addEvent(Event event) {
     setState(() {
-      _allEvents.add(event);
-      _dataSource = EventDataSource(_allEvents);
-      _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+      _userEvents.add(event);
+      _rebuildEventListAndRefreshDataSource();
     });
     _saveUserEvents();
   }
 
+  // Löscht einen Termin basierend auf seiner eindeutigen ID
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
-
     setState(() {
-      _allEvents.remove(event);
-      _dataSource = EventDataSource(_allEvents);
-      _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+      _userEvents.removeWhere((e) => e.id == event.id);
+      _rebuildEventListAndRefreshDataSource();
     });
-
     _saveUserEvents();
   }
 
+  // Aktualisiert einen Termin basierend auf seiner eindeutigen ID
   void _updateEvent(Event oldEvent, Event newEvent) {
     setState(() {
-      final index = _allEvents.indexOf(oldEvent);
+      final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
       if (index != -1) {
-        _allEvents[index] = newEvent;
-        _dataSource = EventDataSource(_allEvents);
-        _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+        _userEvents[index] = newEvent;
+        _rebuildEventListAndRefreshDataSource();
       }
     });
     _saveUserEvents();
   }
 
+  // Speichert nur die Termine des Nutzers, nicht die Feiertage
   void _saveUserEvents() {
-    final allUserEvents = _allEvents
-        .where((event) => !event.isHoliday)
-        .toList();
-    _storageService.saveEvents(allUserEvents);
+    _storageService.saveEvents(_userEvents);
   }
 
+  // Importiert neue Termine und fügt sie zur Liste der Nutzer-Events hinzu
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
-
     if (importedEvents.isNotEmpty) {
       setState(() {
-        _allEvents.addAll(importedEvents);
-        _dataSource = EventDataSource(_allEvents);
-        _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+        _userEvents.addAll(importedEvents);
+        _rebuildEventListAndRefreshDataSource();
       });
       _saveUserEvents();
 
@@ -138,9 +151,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Import abgebrochen oder es wurden keine Termine gefunden.',
-            ),
+            content: Text('Import abgebrochen oder keine Termine gefunden.'),
           ),
         );
       }
@@ -148,9 +159,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _exportEvents() async {
-    final userEvents = _allEvents.where((event) => !event.isHoliday).toList();
-
-    if (userEvents.isEmpty) {
+    if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
@@ -158,13 +167,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
       return;
     }
-
-    await _calendarService.exportEvents(userEvents);
+    await _calendarService.exportEvents(_userEvents);
   }
 
+  // Der Dialog zum Bearbeiten/Löschen bleibt funktional gleich
   void _showEventDialog(Event event) {
     if (event.isHoliday) return;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -178,8 +186,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: const Text('Abbrechen'),
           ),
           TextButton(
+            child: const Text('Löschen'),
             onPressed: () async {
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Schließt den ersten Dialog
               final bool? shouldDelete = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -203,11 +212,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 _deleteEvent(event);
               }
             },
-            child: const Text('Löschen'),
           ),
           TextButton(
+            child: const Text('Bearbeiten'),
             onPressed: () async {
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Schließt den ersten Dialog
               final updatedEvent = await Navigator.push<Event>(
                 context,
                 MaterialPageRoute(
@@ -217,19 +226,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               );
-
               if (updatedEvent != null) {
                 _updateEvent(event, updatedEvent);
               }
             },
-            child: const Text('Bearbeiten'),
           ),
         ],
       ),
     );
   }
 
+  // Die _monthCellBuilder-Methode bleibt unverändert
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
+    // ... (Keine Änderungen hier notwendig)
+    // Der Code aus der Originaldatei kann hier 1:1 übernommen werden.
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
@@ -288,7 +298,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: details.appointments.map((appointment) {
                   final event = appointment as Event;
-
                   if (event.isHoliday) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 2.0),
@@ -305,7 +314,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     );
                   }
-
                   return GestureDetector(
                     onLongPress: () => _showEventDialog(event),
                     child: Container(
@@ -345,9 +353,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
-
     if (shouldReload == true) {
-      _loadAllEvents();
+      // Lädt die Feiertage für das aktuell ausgewählte Jahr neu
+      _loadHolidaysForYear(_currentYear);
     }
   }
 
@@ -356,21 +364,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Terminkalender'),
-        // =======================================================================
-        // KORREKTUR: Die Reihenfolge der Aktions-Buttons wurde geändert.
-        // =======================================================================
         actions: [
           IconButton(
-            icon: const Icon(Icons.input), // Icon für den Import.
-            tooltip:
-                'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
-            onPressed: _importEvents, // Ruft die Import-Methode auf.
+            icon: const Icon(Icons.input),
+            tooltip: 'Termine importieren (.ics)',
+            onPressed: _importEvents,
           ),
           IconButton(
-            icon: const Icon(Icons.output), // Icon für den Export.
-            tooltip:
-                'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
-            onPressed: _exportEvents, // Ruft die neue Export-Methode auf.
+            icon: const Icon(Icons.output),
+            tooltip: 'Termine exportieren (.ics)',
+            onPressed: _exportEvents,
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -385,30 +388,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
         initialDisplayDate: _focusedDay,
         initialSelectedDate: _selectedDay,
         onTap: _onCalendarTapped,
-        firstDayOfWeek: 1,
-        headerStyle: const CalendarHeaderStyle(
-          textAlign: TextAlign.center,
-          textStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue,
-          ),
-        ),
-        viewHeaderStyle: const ViewHeaderStyle(
-          dayTextStyle: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black54,
-          ),
-        ),
-        todayHighlightColor: Colors.blue,
-        selectionDecoration: const BoxDecoration(color: Colors.transparent),
+        firstDayOfWeek: 1, // Montag
+        headerStyle: const CalendarHeaderStyle(textAlign: TextAlign.center),
         monthCellBuilder: _monthCellBuilder,
         monthViewSettings: const MonthViewSettings(
           appointmentDisplayMode: MonthAppointmentDisplayMode.none,
           numberOfWeeksInView: 6,
           showAgenda: false,
         ),
+        // NEU: Dynamisches Nachladen der Feiertage bei Jahreswechsel
+        onViewChanged: (ViewChangedDetails details) {
+          // Nimmt das erste Datum im sichtbaren Bereich als Referenz
+          final newYear = details.visibleDates.first.year;
+          if (newYear != _currentYear) {
+            _currentYear = newYear;
+            _loadHolidaysForYear(newYear);
+          }
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -419,7 +415,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   AddEventScreen(selectedDate: _selectedDay ?? DateTime.now()),
             ),
           );
-
           if (result != null) {
             _addEvent(result);
           }
@@ -429,5 +424,3 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
-
-enum ExportChoice { all, dateRange }

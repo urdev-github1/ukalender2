@@ -1,10 +1,10 @@
 // lib/screens/add_event_screen.dart
 
 import 'package:flutter/material.dart';
-//import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart'; // NEU: Import für eindeutige IDs
 import '../models/event.dart';
 import '../services/notification_service.dart';
-// NEU: Importiert die zentrale Farbpalette der App.
 import '../utils/app_colors.dart';
 
 class AddEventScreen extends StatefulWidget {
@@ -27,8 +27,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
   final _descController = TextEditingController();
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
-  // NEU: Eine Zustandsvariable für die vom Benutzer gewählte Farbe.
   late Color _selectedColor;
+
+  // NEU: Eine Instanz zur Generierung von UUIDs
+  final Uuid _uuid = const Uuid();
 
   @override
   void initState() {
@@ -42,12 +44,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
       _descController.text = event.description ?? '';
       _selectedDate = event.date;
       _selectedTime = TimeOfDay.fromDateTime(event.date);
-      // Die aktuell gespeicherte Farbe des Termins wird übernommen.
       _selectedColor = event.color;
     } else {
       // Modus "Neu erstellen": Setzt Standardwerte.
       _selectedTime = TimeOfDay.now();
-      // Die erste Farbe aus der vordefinierten Liste wird als Standardfarbe gesetzt.
       _selectedColor = AppColors.eventColors.first;
     }
   }
@@ -59,25 +59,52 @@ class _AddEventScreenState extends State<AddEventScreen> {
     super.dispose();
   }
 
-  // NEU: Ein wiederverwendbares Widget, das die Farbauswahl-UI generiert.
+  // --- HILFSMETHODEN FÜR DATUMS- UND ZEITAUSWAHL ---
+
+  Future<void> _selectDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      locale: const Locale(
+        'de',
+        'DE',
+      ), // Stellt sicher, dass der Kalender auf Deutsch ist
+    );
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+    );
+    if (pickedTime != null && pickedTime != _selectedTime) {
+      setState(() {
+        _selectedTime = pickedTime;
+      });
+    }
+  }
+
+  // Das Widget für die Farbauswahl bleibt unverändert.
   Widget _buildColorPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Farbe auswählen', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 10),
-        // Das Wrap-Widget sorgt für einen automatischen Zeilenumbruch,
-        // falls nicht alle Farbkreise in eine Zeile passen.
         Wrap(
-          spacing: 12.0, // Horizontaler Abstand
-          runSpacing: 10.0, // Vertikaler Abstand bei Umbruch
+          spacing: 12.0,
+          runSpacing: 10.0,
           children: AppColors.eventColors.map((color) {
-            // KORREKTUR: Direkter Vergleich der Color-Objekte.
-            // Dies ist die empfohlene Vorgehensweise und behebt die Warnung.
             final isSelected = _selectedColor == color;
             return GestureDetector(
               onTap: () {
-                // Bei Tippen wird der Zustand aktualisiert, was die UI neu zeichnet.
                 setState(() {
                   _selectedColor = color;
                 });
@@ -88,7 +115,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 decoration: BoxDecoration(
                   color: color,
                   shape: BoxShape.circle,
-                  // Visuelles Feedback für die Auswahl (dickerer Rand und Haken).
                   border: isSelected
                       ? Border.all(color: Colors.black, width: 3.0)
                       : Border.all(color: Colors.grey.shade400, width: 1.5),
@@ -115,7 +141,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        // Wichtig für kleine Bildschirme
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Form(
@@ -133,6 +158,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _descController,
                   decoration: const InputDecoration(
@@ -140,13 +166,30 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // KORREKTUR: Implementierte Datums- und Zeitauswahl
                 Row(
-                  // ... (Datums- und Zeitauswahl bleibt unverändert)
-                  // HINWEIS: Es scheint, als würde der Code für die Zeitauswahl hier fehlen.
-                  // Normalerweise würde hier ein Button sein, der `_selectTime` aufruft.
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(
+                          DateFormat.yMMMd('de_DE').format(_selectedDate),
+                        ),
+                        onPressed: _selectDate,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text(_selectedTime.format(context)),
+                        onPressed: _selectTime,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
-                // NEU: Hier wird das Farbauswahl-Widget in das Formular eingefügt.
                 _buildColorPicker(),
                 const SizedBox(height: 30),
                 Center(
@@ -156,7 +199,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
-                        final newEventTime = DateTime(
+                        final eventDateTime = DateTime(
                           _selectedDate.year,
                           _selectedDate.month,
                           _selectedDate.day,
@@ -164,26 +207,36 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           _selectedTime.minute,
                         );
 
-                        final newEvent = Event(
+                        // KORREKTUR: Eindeutige ID-Generierung
+                        // Beim Bearbeiten wird die alte ID beibehalten,
+                        // nur bei neuen Terminen wird eine neue generiert.
+                        final String eventId =
+                            widget.eventToEdit?.id ?? _uuid.v4();
+
+                        // Erstellt das finale Event-Objekt
+                        final finalEvent = Event(
+                          id: eventId, // Wichtig: Die ID dem Objekt mitgeben
                           title: _titleController.text,
                           description: _descController.text.isEmpty
                               ? null
                               : _descController.text,
-                          date: newEventTime,
-                          // KORREKTUR: Die vom Benutzer ausgewählte Farbe
-                          // wird hier an das Event-Objekt übergeben.
+                          date: eventDateTime,
                           color: _selectedColor,
                         );
 
-                        final eventId = DateTime.now().millisecondsSinceEpoch
-                            .remainder(100000);
+                        // Die ID für Benachrichtigungen muss ein Integer sein.
+                        // Der Hash-Code der UUID ist dafür eine sichere Wahl.
+                        final int notificationId = eventId.hashCode;
+
+                        // Planen der Benachrichtigungen
                         NotificationService().scheduleReminders(
-                          eventId,
-                          newEvent.title,
-                          newEvent.date,
+                          notificationId,
+                          finalEvent.title,
+                          finalEvent.date,
                         );
 
-                        Navigator.of(context).pop(newEvent);
+                        // Gibt das erstellte/bearbeitete Event an den Kalender-Screen zurück
+                        Navigator.of(context).pop(finalEvent);
                       }
                     },
                     child: const Text('Speichern'),
