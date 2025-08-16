@@ -243,7 +243,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // =======================================================================
-  // KORRIGIERTE Builder-Methode, die die Auswahl selbst handhabt
+  // Builder-Methode für die Zellen
   // =======================================================================
   /// Definiert das Aussehen für jede einzelne Zelle im Monatskalender.
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
@@ -251,65 +251,77 @@ class _CalendarScreenState extends State<CalendarScreen> {
                            details.date.weekday == DateTime.sunday;
     final bool isCurrentMonth = details.date.month == _focusedDay.month;
 
-    // NEU: Prüfen, ob diese Zelle das aktuell ausgewählte Datum ist.
     final bool isSelected = _selectedDay != null &&
         _selectedDay!.year == details.date.year &&
         _selectedDay!.month == details.date.month &&
         _selectedDay!.day == details.date.day;
 
-    Color textColor;
-    BoxDecoration? decoration;
+    Color dayNumberColor;
 
     if (isSelected) {
-      // Wenn die Zelle ausgewählt ist, erstellen wir den blauen Kreis
-      // und setzen den Text auf weiß, damit er lesbar bleibt.
-      decoration = BoxDecoration(
-        color: Colors.blue.withOpacity(0.9),
-        shape: BoxShape.circle,
-      );
-      textColor = Colors.white;
+      dayNumberColor = Colors.white;
+    } else if (!isCurrentMonth) {
+      dayNumberColor = Colors.black26;
+    } else if (isWeekend) {
+      dayNumberColor = Colors.red.withOpacity(0.8);
     } else {
-      // Ansonsten verwenden wir die bisherige Logik für die Textfarbe.
-      decoration = const BoxDecoration(color: Colors.transparent);
-      if (!isCurrentMonth) {
-        textColor = Colors.black26;
-      } else if (isWeekend) {
-        textColor = Colors.red.withOpacity(0.8);
-      } else {
-        textColor = Colors.black87;
-      }
+      dayNumberColor = Colors.black87;
     }
 
-    // Der äußere Container erhält die Dekoration (z.B. den blauen Kreis).
     return Container(
-      margin: const EdgeInsets.all(4.0), // Ein kleiner Abstand, damit der Kreis nicht die Ränder berührt.
-      decoration: decoration,
-      alignment: Alignment.center,
-      child: Stack(
-        alignment: Alignment.center,
+      padding: const EdgeInsets.all(2.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Der Tag als Text
-          Text(
-            details.date.day.toString(),
-            style: TextStyle(
-              color: textColor,
-              fontSize: 14,
-            ),
-          ),
-          // Unser manuell erstellter Indikator-Punkt
-          if (details.appointments.isNotEmpty)
-            Positioned(
-              bottom: 2, // Position an den neuen Margin angepasst
-              child: Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  // NEU: Die Farbe des Indikators ist weiß, wenn die Zelle ausgewählt ist.
-                  color: isSelected ? Colors.white : Colors.grey,
-                ),
+          // ===== TEIL 1: Die Tageszahl (mit Auswahl-Highlight) =====
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: Colors.blue.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                  )
+                : null,
+            child: Text(
+              details.date.day.toString(),
+              style: TextStyle(
+                color: dayNumberColor,
+                fontSize: 14,
               ),
             ),
+          ),
+          const SizedBox(height: 2),
+
+          // ===== TEIL 2: Die Liste der Termine =====
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: details.appointments.take(2).map((appointment) {
+                  final event = appointment as Event;
+                  return Container(
+                    margin: const EdgeInsets.only(top: 2.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 3.0, vertical: 2.0),
+                    decoration: BoxDecoration(
+                      color: event.color.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(4.0),
+                    ),
+                    child: Text(
+                      event.title,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.0, 
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -361,61 +373,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
-          SfCalendar(
-            view: _calendarView,
-            dataSource: _dataSource,
-            initialDisplayDate: _focusedDay,
-            initialSelectedDate: _selectedDay,
-            onTap: _onCalendarTapped,
-            
-            // ===============================================================
-            // HIER IST DIE ÄNDERUNG: Setzt den Wochenstart auf Montag.
-            // ===============================================================
-            firstDayOfWeek: 1,
-
-            cellBorderColor: Colors.transparent,
-
-            headerStyle: const CalendarHeaderStyle(
-              textAlign: TextAlign.center,
-              textStyle: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+          Expanded(
+            flex: 2, // Gibt dem Kalender 2/3 des verfügbaren Platzes
+            child: SfCalendar(
+              view: _calendarView,
+              dataSource: _dataSource,
+              initialDisplayDate: _focusedDay,
+              initialSelectedDate: _selectedDay,
+              onTap: _onCalendarTapped,
+              firstDayOfWeek: 1,
+              cellBorderColor: Colors.transparent,
+              headerStyle: const CalendarHeaderStyle(
+                textAlign: TextAlign.center,
+                textStyle: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
               ),
-            ),
-
-            viewHeaderStyle: const ViewHeaderStyle(
-              dayTextStyle: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
+              viewHeaderStyle: const ViewHeaderStyle(
+                dayTextStyle: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black54,
+                ),
               ),
-            ),
-            
-            todayHighlightColor: Colors.blue,
-            
-            // KORREKTUR: Diese Eigenschaft wird jetzt im monthCellBuilder gehandhabt.
-            // Wir setzen sie auf transparent, um eine doppelte Zeichnung zu vermeiden.
-            selectionDecoration: const BoxDecoration(
-              color: Colors.transparent,
-            ),
-            
-            monthCellBuilder: _monthCellBuilder,
-            
-            monthViewSettings: const MonthViewSettings(
-              // Wir blenden die Standard-Indikatoren aus, da wir unsere eigenen zeichnen.
-              appointmentDisplayMode: MonthAppointmentDisplayMode.none,
-              showAgenda: false, 
+              todayHighlightColor: Colors.blue,
+              selectionDecoration: const BoxDecoration(
+                color: Colors.transparent,
+              ),
+              monthCellBuilder: _monthCellBuilder,
+              monthViewSettings: const MonthViewSettings(
+                appointmentDisplayMode: MonthAppointmentDisplayMode.indicator,
+                numberOfWeeksInView: 6,
+                showAgenda: false, 
+              ),
             ),
           ),
           const SizedBox(height: 8.0),
           Expanded(
+            flex: 1, // Gibt der Liste 1/3 des verfügbaren Platzes
             child: ListView.builder(
               itemCount: _selectedEvents.length,
               itemBuilder: (context, index) {
                 final event = _selectedEvents[index];
                 return Dismissible(
-                  // KORREKTUR: Typo von 'toIso80601String' zu 'toIso8601String'
+                  // ===============================================================
+                  // HIER WAR DER FEHLER: KORRIGIERT zu toIso8601String()
+                  // ===============================================================
                   key: Key('${event.title}_${event.date.toIso8601String()}_$index'),
                   direction: event.isHoliday 
                     ? DismissDirection.none 
