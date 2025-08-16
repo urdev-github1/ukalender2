@@ -40,5 +40,5 @@ class Event {
 }
 
 // Hilfsfunktionen für die Farbe bleiben unverändert.
-int _colorToJson(Color color) => color.value;
+int _colorToJson(Color color) => color.toARGB32();
 Color _colorFromJson(int value) => Color(value);

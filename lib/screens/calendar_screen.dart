@@ -46,7 +46,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final CalendarView _calendarView = CalendarView.month;
 
   // MODIFIZIERT: Zustandsvariablen für das aktuelle Datum und Jahr
-  DateTime _focusedDay = DateTime.now();
+  final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late int _currentYear;
 
@@ -324,7 +324,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: event.color.withAlpha(204),
-                        borderRadius: BorderRadius.circular(4.0),
+                        borderRadius: BorderRadius.circular(0),
                       ),
                       child: Text(
                         event.title,
