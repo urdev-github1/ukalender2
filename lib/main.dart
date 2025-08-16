@@ -17,15 +17,15 @@ void main() async {
   // Stellt sicher, dass die Flutter-Engine initialisiert ist, bevor auf Plugins
   // oder Services zugegriffen wird. Dies ist notwendig, wenn die main-Funktion asynchron ist.
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Lädt und initialisiert die Lokalisierungsdaten für die Datumsformatierung.
   // 'de_DE' sorgt dafür, dass Monatsnamen, Wochentage etc. auf Deutsch angezeigt werden.
   await initializeDateFormatting('de_DE', null);
-  
+
   // Erstellt eine Instanz des NotificationService und ruft dessen init-Methode auf.
   // Dies initialisiert die Einstellungen für lokale Benachrichtigungen.
   await NotificationService().init();
-  
+
   // Startet die Flutter-Anwendung mit dem MyApp-Widget als Wurzel-Widget.
   runApp(const MyApp());
 }
@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
         // Setzt die primäre Farbpalette der App auf Blautöne.
         primarySwatch: Colors.blue,
       ),
-      
+
       // --- HINZUGEFÜGTE KONFIGURATION FÜR LOKALISIERUNG ---
 
       // Dies sind die "Delegierten", die die eigentliche Übersetzungsarbeit leisten.
@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
 
       // Stellt die Sprache und Region der App fest auf Deutsch (Deutschland) ein.
       locale: const Locale('de', 'DE'),
-      
+
       // --- ENDE DER HINZUGEFÜGTEN KONFIGURATION ---
 
       // Das Widget, das als Startbildschirm der App angezeigt wird.

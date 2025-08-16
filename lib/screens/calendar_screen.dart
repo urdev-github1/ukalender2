@@ -17,7 +17,8 @@ class EventDataSource extends CalendarDataSource {
   @override
   DateTime getStartTime(int index) => (appointments![index] as Event).date;
   @override
-  DateTime getEndTime(int index) => (appointments![index] as Event).date.add(const Duration(hours: 1));
+  DateTime getEndTime(int index) =>
+      (appointments![index] as Event).date.add(const Duration(hours: 1));
   @override
   String getSubject(int index) => (appointments![index] as Event).title;
   @override
@@ -36,8 +37,8 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   List<Event> _allEvents = [];
   late EventDataSource _dataSource;
-  final CalendarView _calendarView = CalendarView.month; 
-  DateTime _focusedDay = DateTime.now();
+  final CalendarView _calendarView = CalendarView.month;
+  final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   final HolidayService _holidayService = HolidayService();
   final StorageService _storageService = StorageService();
@@ -53,9 +54,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _loadAllEvents() async {
     final stateCode = await _storageService.getSelectedState();
-    print('Lade Feiertage für: $stateCode');
+    //print('Lade Feiertage für: $stateCode');
 
-    final holidays = await _holidayService.getHolidays(_focusedDay.year, stateCode);
+    final holidays = await _holidayService.getHolidays(
+      _focusedDay.year,
+      stateCode,
+    );
     final savedEvents = await _storageService.loadEvents();
 
     setState(() {
@@ -71,12 +75,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _addEvent(Event event) {
-     setState(() {
-       _allEvents.add(event);
-       _dataSource = EventDataSource(_allEvents);
-       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
-     });
-     _saveUserEvents();
+    setState(() {
+      _allEvents.add(event);
+      _dataSource = EventDataSource(_allEvents);
+      _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+    });
+    _saveUserEvents();
   }
 
   void _deleteEvent(Event event) {
@@ -87,7 +91,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _dataSource = EventDataSource(_allEvents);
       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
-  
+
     _saveUserEvents();
   }
 
@@ -102,9 +106,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
     _saveUserEvents();
   }
-  
+
   void _saveUserEvents() {
-    final allUserEvents = _allEvents.where((event) => !event.isHoliday).toList();
+    final allUserEvents = _allEvents
+        .where((event) => !event.isHoliday)
+        .toList();
     _storageService.saveEvents(allUserEvents);
   }
 
@@ -122,7 +128,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${importedEvents.length} Termin(e) erfolgreich importiert.'),
+            content: Text(
+              '${importedEvents.length} Termin(e) erfolgreich importiert.',
+            ),
           ),
         );
       }
@@ -130,7 +138,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Import abgebrochen oder es wurden keine Termine gefunden.'),
+            content: Text(
+              'Import abgebrochen oder es wurden keine Termine gefunden.',
+            ),
           ),
         );
       }
@@ -159,7 +169,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(event.title),
-        content: const Text('Möchten Sie diesen Termin bearbeiten oder löschen?'),
+        content: const Text(
+          'Möchten Sie diesen Termin bearbeiten oder löschen?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -172,7 +184,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Löschen bestätigen'),
-                  content: const Text('Möchten Sie diesen Termin wirklich löschen?'),
+                  content: const Text(
+                    'Möchten Sie diesen Termin wirklich löschen?',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
@@ -216,10 +230,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    final bool isHoliday = details.appointments.any((appointment) => (appointment as Event).isHoliday);
-    final bool isWeekend = details.date.weekday == DateTime.saturday || details.date.weekday == DateTime.sunday;
+    final bool isHoliday = details.appointments.any(
+      (appointment) => (appointment as Event).isHoliday,
+    );
+    final bool isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
     final bool isCurrentMonth = details.date.month == _focusedDay.month;
-    final bool isSelected = _selectedDay != null && _selectedDay!.year == details.date.year && _selectedDay!.month == details.date.month && _selectedDay!.day == details.date.day;
+    final bool isSelected =
+        _selectedDay != null &&
+        _selectedDay!.year == details.date.year &&
+        _selectedDay!.month == details.date.month &&
+        _selectedDay!.day == details.date.day;
 
     Color dayNumberColor;
     if (isSelected) {
@@ -227,14 +249,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else if (!isCurrentMonth) {
       dayNumberColor = Colors.black26;
     } else if (isWeekend && !isHoliday) {
-      dayNumberColor = Colors.red.withOpacity(0.8);
+      dayNumberColor = Colors.red.withAlpha(204);
     } else {
       dayNumberColor = Colors.black87;
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: isHoliday ? Colors.green.withOpacity(0.15) : Colors.transparent,
+        color: isHoliday ? Colors.green.withAlpha(38) : Colors.transparent,
         border: Border(
           top: BorderSide(color: Colors.grey[300]!, width: 0.5),
           left: BorderSide(color: Colors.grey[300]!, width: 0.5),
@@ -248,7 +270,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             width: 24,
             height: 24,
             alignment: Alignment.center,
-            decoration: isSelected ? BoxDecoration(color: Colors.blue.withOpacity(0.9), shape: BoxShape.circle) : null,
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: Colors.blue.withAlpha(230),
+                    shape: BoxShape.circle,
+                  )
+                : null,
             child: Text(
               details.date.day.toString(),
               style: TextStyle(color: dayNumberColor, fontSize: 14),
@@ -261,7 +288,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: details.appointments.map((appointment) {
                   final event = appointment as Event;
-                  
+
                   if (event.isHoliday) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 2.0),
@@ -278,23 +305,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     );
                   }
-                  
+
                   return GestureDetector(
                     onLongPress: () => _showEventDialog(event),
                     child: Container(
                       margin: const EdgeInsets.only(top: 2.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 3.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3.0,
+                        vertical: 2.0,
+                      ),
                       decoration: BoxDecoration(
-                        color: event.color.withOpacity(0.8),
+                        color: event.color.withAlpha(204),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
                         event.title,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.clip,
                         maxLines: 1,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11.0,
+                          fontSize: 12.2,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -331,12 +362,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.input), // Icon für den Import.
-            tooltip: 'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
+            tooltip:
+                'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
             onPressed: _importEvents, // Ruft die Import-Methode auf.
           ),
           IconButton(
             icon: const Icon(Icons.output), // Icon für den Export.
-            tooltip: 'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
+            tooltip:
+                'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
             onPressed: _exportEvents, // Ruft die neue Export-Methode auf.
           ),
           IconButton(
@@ -369,21 +402,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         todayHighlightColor: Colors.blue,
-        selectionDecoration: const BoxDecoration(
-          color: Colors.transparent,
-        ),
+        selectionDecoration: const BoxDecoration(color: Colors.transparent),
         monthCellBuilder: _monthCellBuilder,
         monthViewSettings: const MonthViewSettings(
           appointmentDisplayMode: MonthAppointmentDisplayMode.none,
           numberOfWeeksInView: 6,
-          showAgenda: false, 
+          showAgenda: false,
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.push<Event>(
             context,
-            MaterialPageRoute(builder: (_) => AddEventScreen(selectedDate: _selectedDay ?? DateTime.now())),
+            MaterialPageRoute(
+              builder: (_) =>
+                  AddEventScreen(selectedDate: _selectedDay ?? DateTime.now()),
+            ),
           );
 
           if (result != null) {
