@@ -1,3 +1,5 @@
+// lib/services/storage_service
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -30,10 +32,11 @@ class StorageService {
 
   Future<File> saveEvents(List<Event> events) async {
     final file = await _localFile;
-    final List<Map<String, dynamic>> json = events.map((e) => e.toJson()).toList();
+    final List<Map<String, dynamic>> json = events
+        .map((e) => e.toJson())
+        .toList();
     return file.writeAsString(jsonEncode(json));
   }
-
 
   // === SharedPreferences für einfache Einstellungen (Bundesland) ===
 
