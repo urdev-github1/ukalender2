@@ -1,3 +1,5 @@
+// lib/screens/calendar_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
@@ -32,12 +34,9 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  // State-Variablen und Service-Instanzen bleiben gleich.
   List<Event> _allEvents = [];
   late EventDataSource _dataSource;
-  // Die Variable _calendarView wird jetzt nicht mehr durch den Benutzer geändert,
-  // bleibt aber auf CalendarView.month fixiert.
-  final CalendarView _calendarView = CalendarView.month;
+  final CalendarView _calendarView = CalendarView.month; 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   final HolidayService _holidayService = HolidayService();
@@ -55,6 +54,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _loadAllEvents() async {
     final stateCode = await _storageService.getSelectedState();
     print('Lade Feiertage für: $stateCode');
+
     final holidays = await _holidayService.getHolidays(_focusedDay.year, stateCode);
     final savedEvents = await _storageService.loadEvents();
 
@@ -108,8 +108,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _storageService.saveEvents(allUserEvents);
   }
 
-  void _importEvents() async { /* ... unverändert ... */ }
-  void _exportEvents() async { /* ... unverändert ... */ }
+  void _importEvents() async {
+    final List<Event> importedEvents = await _calendarService.importEvents();
+
+    if (importedEvents.isNotEmpty) {
+      setState(() {
+        _allEvents.addAll(importedEvents);
+        _dataSource = EventDataSource(_allEvents);
+        _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+      });
+      _saveUserEvents();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${importedEvents.length} Termin(e) erfolgreich importiert.'),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Import abgebrochen oder es wurden keine Termine gefunden.'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _exportEvents() async {
+    final userEvents = _allEvents.where((event) => !event.isHoliday).toList();
+
+    if (userEvents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
+        ),
+      );
+      return;
+    }
+
+    await _calendarService.exportEvents(userEvents);
+  }
 
   void _showEventDialog(Event event) {
     if (event.isHoliday) return;
@@ -221,6 +262,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 children: details.appointments.map((appointment) {
                   final event = appointment as Event;
                   
+                  if (event.isHoliday) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 2.0),
+                      child: Text(
+                        event.title,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.green[800],
+                          fontSize: 10.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }
+                  
                   return GestureDetector(
                     onLongPress: () => _showEventDialog(event),
                     child: Container(
@@ -267,27 +325,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Terminkalender'),
+        // =======================================================================
+        // KORREKTUR: Die Reihenfolge der Aktions-Buttons wurde geändert.
+        // =======================================================================
         actions: [
+          IconButton(
+            icon: const Icon(Icons.input), // Icon für den Import.
+            tooltip: 'Termine importieren (.ics)', // Hilfetext bei langem Drücken.
+            onPressed: _importEvents, // Ruft die Import-Methode auf.
+          ),
+          IconButton(
+            icon: const Icon(Icons.output), // Icon für den Export.
+            tooltip: 'Termine exportieren (.ics)', // Hilfetext bei langem Drücken.
+            onPressed: _exportEvents, // Ruft die neue Export-Methode auf.
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Einstellungen',
             onPressed: _openSettings,
           ),
-          // ENTFERNT: Der PopupMenuButton für die Ansichtsauswahl wurde hier entfernt.
-          IconButton(
-            icon: const Icon(Icons.input),
-            tooltip: 'Termine importieren (.ics)',
-            onPressed: _importEvents,
-          ),
-          IconButton(
-            icon: const Icon(Icons.output),
-            tooltip: 'Termine exportieren (.ics)',
-            onPressed: _exportEvents,
-          ),
         ],
       ),
       body: SfCalendar(
-        view: _calendarView, // Nutzt die fixierte Monatsansicht
+        view: _calendarView,
         dataSource: _dataSource,
         initialDisplayDate: _focusedDay,
         initialSelectedDate: _selectedDay,
@@ -313,11 +373,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           color: Colors.transparent,
         ),
         monthCellBuilder: _monthCellBuilder,
-        appointmentBuilder: (BuildContext context, CalendarAppointmentDetails details) {
-          return Container();
-        },
         monthViewSettings: const MonthViewSettings(
-          appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+          appointmentDisplayMode: MonthAppointmentDisplayMode.none,
           numberOfWeeksInView: 6,
           showAgenda: false, 
         ),
