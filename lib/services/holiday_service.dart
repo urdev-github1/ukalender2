@@ -44,8 +44,11 @@ class HolidayService {
         // Fehlerbehandlung
         return [];
       }
-    } catch (e) {
+    } catch (e, s) {
+      // Füge den StackTrace 's' hinzu
       // Fehlerbehandlung
+      debugPrint('Fehler beim Laden der Feiertage: $e');
+      debugPrint('StackTrace: $s');
       return [];
     }
   }

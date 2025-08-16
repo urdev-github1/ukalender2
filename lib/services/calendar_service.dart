@@ -70,7 +70,10 @@ class CalendarService {
           // KORREKTUR
           // Eine eindeutige ID (UID) ist wichtig, damit Kalenderprogramme Termine
           // korrekt zuordnen und aktualisieren können.
-          uid: '${DateTime.now().millisecondsSinceEpoch}@meine.app',
+          //uid: '${DateTime.now().millisecondsSinceEpoch}@meine.app',
+          // OPTIMIERTE VERSION:
+          // Nutzt die stabile ID des Events für eine konsistente UID.
+          uid: '${event.id}@meine.app',
           dtstamp: DateTime.now(), // Zeitstempel der Erstellung.
           dtstart: event.date, // Startzeitpunkt des Termins.
           dtend: event.date.add(
