@@ -8,6 +8,7 @@ import 'add_event_screen.dart';
 import '../services/storage_service.dart';
 import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
+import '../services/notification_service.dart';
 
 // Die EventDataSource-Klasse bleibt unverändert.
 class EventDataSource extends CalendarDataSource {
@@ -104,6 +105,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Löscht einen Termin basierend auf seiner eindeutigen ID
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
+
+    // --- ANPASSUNG START ---
+    // Storniert die geplanten Benachrichtigungen für diesen Termin.
+    final int notificationId = event.id.hashCode;
+    NotificationService().cancelReminders(notificationId);
+    // --- ANPASSUNG ENDE ---
+
     setState(() {
       _userEvents.removeWhere((e) => e.id == event.id);
       _rebuildEventListAndRefreshDataSource();
@@ -113,6 +121,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // Aktualisiert einen Termin basierend auf seiner eindeutigen ID
   void _updateEvent(Event oldEvent, Event newEvent) {
+    // --- ANPASSUNG START ---
+    // Storniert die alten Benachrichtigungen. Die neuen werden beim Speichern
+    // im AddEventScreen automatisch neu geplant.
+    final int oldNotificationId = oldEvent.id.hashCode;
+    NotificationService().cancelReminders(oldNotificationId);
+    // --- ANPASSUNG ENDE ---
+
     setState(() {
       final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
       if (index != -1) {

@@ -25,6 +25,7 @@ void main() async {
   // Erstellt eine Instanz des NotificationService und ruft dessen init-Methode auf.
   // Dies initialisiert die Einstellungen für lokale Benachrichtigungen.
   await NotificationService().init();
+  await NotificationService().requestPermissions();
 
   // Startet die Flutter-Anwendung mit dem MyApp-Widget als Wurzel-Widget.
   runApp(const MyApp());
