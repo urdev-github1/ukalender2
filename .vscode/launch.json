@@ -1,0 +1,13 @@
+// .vscode/launch.json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter Kalender",
+            "request": "launch",
+            "type": "dart",
+            "preLaunchTask": "Generate Build Info" // <-- DIESE ZEILE HINZUFÜGEN
+        }
+        // ... andere Konfigurationen wie "Flutter Kalender (profile mode)" etc.
+    ]
+}

@@ -1,6 +1,9 @@
 // lib/screens/settings_screen.dart
 
 import 'package:flutter/material.dart';
+// Import für die automatisch generierte Build-Information
+//import '../scripts/generate_build_info.dart';
+import '../generated/build_info.dart';
 import '../services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -65,20 +68,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           // Beim Zurückgehen wird der Kalender-Screen informiert, neu zu laden.
-          onPressed: () => Navigator.of(context).pop(true), 
+          onPressed: () => Navigator.of(context).pop(true),
         ),
       ),
-      body: ListView(
-        children: _germanStates.entries.map((entry) {
-          final code = entry.key;
-          final name = entry.value;
-          return RadioListTile<String>(
-            title: Text(name),
-            value: code,
-            groupValue: _selectedStateCode,
-            onChanged: _onStateSelected,
-          );
-        }).toList(),
+      // MODIFIZIERT: Das Layout wird in eine Spalte geändert,
+      // um den Text unter der Liste platzieren zu können.
+      body: Column(
+        children: [
+          // Das 'Expanded'-Widget sorgt dafür, dass die ListView den
+          // gesamten verfügbaren Platz in der Spalte einnimmt.
+          Expanded(
+            child: ListView(
+              children: _germanStates.entries.map((entry) {
+                final code = entry.key;
+                final name = entry.value;
+                return RadioListTile<String>(
+                  title: Text(name),
+                  value: code,
+                  groupValue: _selectedStateCode,
+                  onChanged: _onStateSelected,
+                );
+              }).toList(),
+            ),
+          ),
+
+          // NEU: Ein Bereich am unteren Rand für die Build-Information.
+          // Eine Trennlinie für eine saubere visuelle Abgrenzung.
+          const Divider(height: 1.0, thickness: 1.0),
+
+          // Ein Padding für etwas Abstand.
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 16.0,
+              horizontal: 8.0,
+            ),
+            child: Text(
+              // Greift auf die statische Konstante aus der generierten Datei zu.
+              'Build-Zeitpunkt: ${BuildInfo.buildTimestamp}',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.0, color: Colors.grey.shade600),
+            ),
+          ),
+        ],
       ),
     );
   }

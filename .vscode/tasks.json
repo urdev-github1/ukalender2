@@ -1,0 +1,19 @@
+// .vscode/tasks.json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Generate Build Info",
+            "type": "shell",
+            "command": "dart",
+            "args": [
+                "run",
+                "lib/scripts/generate_build_info.dart"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}
