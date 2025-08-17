@@ -1,0 +1,15 @@
+# build_info_builder.yaml
+
+builders:
+  # Ein Name für unseren Builder
+  build_info:
+    # Der Dart-Importpfad zur Datei mit der Builder-Logik
+    import: "package:ukalender2/lib/build_info_builder.dart"
+    # Die Funktion in dieser Datei, die den Builder erstellt
+    builder_factories: ["buildInfoBuilder"]
+    # Die Regel, welche Dateien erzeugt werden. Muss zu build.dart passen.
+    build_extensions: {"lib/main.dart": ["lib/generated/build_info.dart"]}
+    # Wichtig: Die erzeugte Datei soll direkt in den Source-Code geschrieben werden
+    build_to: source
+    # Der Builder soll automatisch für unser eigenes Paket angewendet werden
+    auto_apply: root_package

@@ -50,6 +50,8 @@ dependencies:
   json_annotation: ^4.9.0
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
+  build_runner: ^2.7.0
+  build: ^3.0.2
 
 dependency_overrides:
   #device_calendar: ^4.3.3
@@ -60,7 +62,6 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
-  build_runner: ^2.7.0
   json_serializable: ^6.10.0
 
 # For information on the generic Dart part of this file, see the

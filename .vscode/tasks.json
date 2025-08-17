@@ -5,15 +5,13 @@
         {
             "label": "Generate Build Info",
             "type": "shell",
-            "command": "dart",
-            "args": [
-                "run",
-                "lib/scripts/generate_build_info.dart"
-            ],
+            // Führt BEIDE Befehle nacheinander aus: erst aufräumen, dann generieren.
+            "command": "flutter clean; dart run build_runner build --delete-conflicting-outputs",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
-            }
+            },
+            "problemMatcher": []
         }
     ]
 }
