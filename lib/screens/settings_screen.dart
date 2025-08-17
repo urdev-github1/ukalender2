@@ -41,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'SH': 'Schleswig-Holstein',
     'TH': 'Thüringen',
   };
+
   @override
   void initState() {
     super.initState();
@@ -73,16 +74,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 8.0),
+      padding: const EdgeInsets.fromLTRB(16.0, 4.0, 16.0, 8.0),
       child: Text(
         title,
-        // --- HIER IST DIE ANPASSUNG ---
-        // Anstatt 'titleLarge' verwenden wir wieder 'titleMedium' als Basis
-        // und fügen eine benutzerdefinierte Schriftgröße von 20.0 hinzu.
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.bold,
-          fontSize: 19.0, // <-- INDIVIDUELLE SCHRIFTGRÖSSE
+          fontSize: 19,
         ),
       ),
     );
@@ -95,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Einstellungen'),
+        //title: const Text('Einstellungen'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle(
@@ -107,11 +105,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       extendBodyBehindAppBar: true,
-      body: WillPopScope(
-        onWillPop: () async {
+      body: PopScope(
+        canPop: false,
+
+        // =======================================================================
+        // ==================== HIER IST DIE ENDGÜLTIGE LÖSUNG =====================
+        // =======================================================================
+
+        // Wir verwenden die Signatur `(bool didPop)`, die Ihr Compiler erwartet.
+        // Der Kommentar `// ignore...` weist den Linter an, die Deprecation-Warnung
+        // nur für diese eine Zeile zu ignorieren. Das ist die saubere Lösung
+        // für dieses Versionskonflikt-Problem.
+        // ignore: deprecated_member_use
+        onPopInvoked: (bool didPop) {
+          if (didPop) return;
           Navigator.of(context).pop(true);
-          return true;
         },
+
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -128,24 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               top: kToolbarHeight + MediaQuery.of(context).padding.top,
             ),
             children: [
-              _buildSectionTitle(context, 'Feiertage'),
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: ListTile(
-                  title: const Text('Bundesland'),
-                  trailing: DropdownButton<String>(
-                    value: _selectedStateCode,
-                    onChanged: _onStateSelected,
-                    underline: const SizedBox(),
-                    items: _germanStates.entries.map((entry) {
-                      return DropdownMenuItem<String>(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
+              // ===== ANORDNUNG GETAUSCHT: "ÜBER DIE APP" STEHT JETZT OBEN =====
               _buildSectionTitle(context, 'Über die App'),
               Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -153,17 +146,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('App-Version'),
+                      title: const Text(
+                        'App-Version',
+                        style: TextStyle(fontSize: 17),
+                      ),
                       subtitle: Text(
                         '${_packageInfo.version}+${_packageInfo.buildNumber}',
+                        style: const TextStyle(fontSize: 15),
                       ),
                     ),
                     ListTile(
                       leading: const Icon(Icons.build_circle_outlined),
-                      title: const Text('Build-Zeitpunkt'),
-                      subtitle: const Text(BuildInfo.buildTimestamp),
+                      title: const Text(
+                        'Build-Zeitpunkt',
+                        style: TextStyle(fontSize: 17),
+                      ),
+                      subtitle: const Text(
+                        BuildInfo.buildTimestamp,
+                        style: TextStyle(fontSize: 15),
+                      ),
                     ),
                   ],
+                ),
+              ),
+
+              // HIER WURDE DER ABSTAND EINGEFÜGT
+              const SizedBox(height: 60.0),
+
+              // ===== "FEIERTAGE" STEHT JETZT UNTEN =====
+              _buildSectionTitle(context, 'Feiertage der Bundesländer:'),
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ListTile(
+                  trailing: DropdownButton<String>(
+                    value: _selectedStateCode,
+                    onChanged: _onStateSelected,
+                    underline: const SizedBox(),
+                    items: _germanStates.entries.map((entry) {
+                      return DropdownMenuItem<String>(
+                        value: entry.key,
+                        child: Text(
+                          entry.value,
+                          style: const TextStyle(fontSize: 18.0),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ],

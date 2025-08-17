@@ -10,6 +10,7 @@ import '../services/storage_service.dart';
 import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
+//import '../utils/app_colors.dart'; // <-- DIESE ZEILE HINZUFÜGEN
 
 // Die EventDataSource-Klasse bleibt unverändert.
 class EventDataSource extends CalendarDataSource {
@@ -223,7 +224,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // =======================================================================
+  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+  // =======================================================================
+
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
+    // Definiere das heutige Datum (ohne Zeit) für den Vergleich.
+    final DateTime now = DateTime.now();
+    final bool isToday =
+        details.date.year == now.year &&
+        details.date.month == now.month &&
+        details.date.day == now.day;
+
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
@@ -266,12 +278,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
             width: 24,
             height: 24,
             alignment: Alignment.center,
+            // Die Dekorationslogik wird erweitert.
+            // - Wenn der Tag ausgewählt ist, erhält er den vollen Kreis.
+            // - Wenn er NICHT ausgewählt, aber der HEUTIGE Tag ist,
+            //   erhält er einen dezenten Rahmen in der Primärfarbe.
             decoration: isSelected
                 ? BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
                     shape: BoxShape.circle,
                   )
-                : null,
+                : isToday
+                ? BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.tertiary,
+                      width: 2.0,
+                    ),
+                  )
+                : null, // Ansonsten keine besondere Dekoration.
             child: Text(
               details.date.day.toString(),
               style: TextStyle(color: dayNumberColor, fontSize: 14),
@@ -333,6 +357,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
+
+  // =======================================================================
+  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+  // =======================================================================
 
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
@@ -451,6 +479,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Color.fromARGB(
+          255,
+          131,
+          185,
+          201,
+        ), // <-- HIER IST DIE ÄNDERUNG
         onPressed: () async {
           final result = await Navigator.push<Event>(
             context,
