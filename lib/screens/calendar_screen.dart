@@ -1,6 +1,7 @@
 // lib/screens/calendar_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import für SystemUiOverlayStyle
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
@@ -36,25 +37,18 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  // MODIFIZIERT: Getrennte Listen für eine saubere Zustandsverwaltung
+  // ... (Der gesamte State-Code von initState bis _openSettings bleibt unverändert)
   List<Event> _userEvents = [];
   List<Event> _holidays = [];
-
-  // Diese Liste wird immer die Kombination aus den beiden oberen sein
   List<Event> _allEvents = [];
-
   late EventDataSource _dataSource;
   final CalendarView _calendarView = CalendarView.month;
-
-  // MODIFIZIERT: Zustandsvariablen für das aktuelle Datum und Jahr
   final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late int _currentYear;
-
   final HolidayService _holidayService = HolidayService();
   final StorageService _storageService = StorageService();
   final CalendarService _calendarService = CalendarService();
-
   @override
   void initState() {
     super.initState();
@@ -64,25 +58,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadInitialData();
   }
 
-  // Lädt die initialen Daten: gespeicherte Termine und Feiertage für das aktuelle Jahr
   Future<void> _loadInitialData() async {
     _userEvents = await _storageService.loadEvents();
     await _loadHolidaysForYear(_currentYear);
   }
 
-  // Lädt die Feiertage für ein bestimmtes Jahr von der API
   Future<void> _loadHolidaysForYear(int year) async {
     final stateCode = await _storageService.getSelectedState();
     _holidays = await _holidayService.getHolidays(year, stateCode);
     _rebuildEventListAndRefreshDataSource();
   }
 
-  // Kombiniert Nutzer-Events und Feiertage und aktualisiert die Kalenderansicht
   void _rebuildEventListAndRefreshDataSource() {
     setState(() {
       _allEvents = [..._userEvents, ..._holidays];
       _dataSource = EventDataSource(_allEvents);
-      // Ein Reset ist hier am sichersten, da sich potenziell viele Daten (alle Feiertage) ändern
       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
   }
@@ -93,7 +83,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // Fügt einen neuen Termin hinzu (nur zur _userEvents-Liste)
   void _addEvent(Event event) {
     setState(() {
       _userEvents.add(event);
@@ -102,16 +91,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _saveUserEvents();
   }
 
-  // Löscht einen Termin basierend auf seiner eindeutigen ID
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
-
-    // --- ANPASSUNG START ---
-    // Storniert die geplanten Benachrichtigungen für diesen Termin.
     final int notificationId = event.id.hashCode;
     NotificationService().cancelReminders(notificationId);
-    // --- ANPASSUNG ENDE ---
-
     setState(() {
       _userEvents.removeWhere((e) => e.id == event.id);
       _rebuildEventListAndRefreshDataSource();
@@ -119,15 +102,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _saveUserEvents();
   }
 
-  // Aktualisiert einen Termin basierend auf seiner eindeutigen ID
   void _updateEvent(Event oldEvent, Event newEvent) {
-    // --- ANPASSUNG START ---
-    // Storniert die alten Benachrichtigungen. Die neuen werden beim Speichern
-    // im AddEventScreen automatisch neu geplant.
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
-    // --- ANPASSUNG ENDE ---
-
     setState(() {
       final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
       if (index != -1) {
@@ -138,12 +115,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _saveUserEvents();
   }
 
-  // Speichert nur die Termine des Nutzers, nicht die Feiertage
   void _saveUserEvents() {
     _storageService.saveEvents(_userEvents);
   }
 
-  // Importiert neue Termine und fügt sie zur Liste der Nutzer-Events hinzu
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
     if (importedEvents.isNotEmpty) {
@@ -152,7 +127,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _rebuildEventListAndRefreshDataSource();
       });
       _saveUserEvents();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -185,7 +159,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
-  // Der Dialog zum Bearbeiten/Löschen bleibt funktional gleich
   void _showEventDialog(Event event) {
     if (event.isHoliday) return;
     showDialog(
@@ -203,7 +176,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           TextButton(
             child: const Text('Löschen'),
             onPressed: () async {
-              Navigator.of(context).pop(); // Schließt den ersten Dialog
+              Navigator.of(context).pop();
               final bool? shouldDelete = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -231,7 +204,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           TextButton(
             child: const Text('Bearbeiten'),
             onPressed: () async {
-              Navigator.of(context).pop(); // Schließt den ersten Dialog
+              Navigator.of(context).pop();
               final updatedEvent = await Navigator.push<Event>(
                 context,
                 MaterialPageRoute(
@@ -251,10 +224,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // Die _monthCellBuilder-Methode bleibt unverändert
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // ... (Keine Änderungen hier notwendig)
-    // Der Code aus der Originaldatei kann hier 1:1 übernommen werden.
+    // ... (Diese Methode bleibt unverändert)
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
@@ -269,14 +240,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _selectedDay!.day == details.date.day;
 
     Color dayNumberColor;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (isSelected) {
       dayNumberColor = Colors.white;
     } else if (!isCurrentMonth) {
-      dayNumberColor = Colors.black26;
+      dayNumberColor = isDark ? Colors.white24 : Colors.black26;
     } else if (isWeekend && !isHoliday) {
       dayNumberColor = Colors.red.withAlpha(204);
     } else {
-      dayNumberColor = Colors.black87;
+      dayNumberColor = isDark ? Colors.white70 : Colors.black87;
     }
 
     return Container(
@@ -297,7 +270,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             alignment: Alignment.center,
             decoration: isSelected
                 ? BoxDecoration(
-                    color: Colors.blue.withAlpha(230),
+                    color: Theme.of(context).colorScheme.primary,
                     shape: BoxShape.circle,
                   )
                 : null,
@@ -369,16 +342,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
     if (shouldReload == true) {
-      // Lädt die Feiertage für das aktuell ausgewählte Jahr neu
       _loadHolidaysForYear(_currentYear);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Terminkalender'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: isDarkMode
+              ? Brightness.light
+              : Brightness.dark,
+          statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.input),
@@ -397,29 +381,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: SfCalendar(
-        view: _calendarView,
-        dataSource: _dataSource,
-        initialDisplayDate: _focusedDay,
-        initialSelectedDate: _selectedDay,
-        onTap: _onCalendarTapped,
-        firstDayOfWeek: 1, // Montag
-        headerStyle: const CalendarHeaderStyle(textAlign: TextAlign.center),
-        monthCellBuilder: _monthCellBuilder,
-        monthViewSettings: const MonthViewSettings(
-          appointmentDisplayMode: MonthAppointmentDisplayMode.none,
-          numberOfWeeksInView: 6,
-          showAgenda: false,
+      extendBodyBehindAppBar: true,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.surfaceContainer,
+              colorScheme.surfaceContainerLow,
+            ],
+          ),
         ),
-        // NEU: Dynamisches Nachladen der Feiertage bei Jahreswechsel
-        onViewChanged: (ViewChangedDetails details) {
-          // Nimmt das erste Datum im sichtbaren Bereich als Referenz
-          final newYear = details.visibleDates.first.year;
-          if (newYear != _currentYear) {
-            _currentYear = newYear;
-            _loadHolidaysForYear(newYear);
-          }
-        },
+        padding: EdgeInsets.only(
+          top: kToolbarHeight + MediaQuery.of(context).padding.top,
+        ),
+        child: SfCalendar(
+          view: _calendarView,
+          dataSource: _dataSource,
+          initialDisplayDate: _focusedDay,
+          initialSelectedDate: _selectedDay,
+          onTap: _onCalendarTapped,
+          firstDayOfWeek: 1,
+          // --- HIER IST DIE KORREKTUR ---
+          headerStyle: const CalendarHeaderStyle(
+            textAlign: TextAlign.center,
+            backgroundColor: Colors
+                .transparent, // Sorgt dafür, dass der Hintergrund verschwindet
+          ),
+          monthCellBuilder: _monthCellBuilder,
+          monthViewSettings: const MonthViewSettings(
+            appointmentDisplayMode: MonthAppointmentDisplayMode.none,
+            numberOfWeeksInView: 6,
+            showAgenda: false,
+          ),
+          onViewChanged: (ViewChangedDetails details) {
+            final newYear = details.visibleDates.first.year;
+            if (newYear != _currentYear) {
+              _currentYear = newYear;
+              _loadHolidaysForYear(newYear);
+            }
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
