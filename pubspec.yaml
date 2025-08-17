@@ -50,7 +50,6 @@ dependencies:
   json_annotation: ^4.9.0
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
-  build_runner: ^2.7.0
   build: ^3.0.2
 
 dependency_overrides:
