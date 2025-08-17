@@ -1,5 +1,3 @@
-// lib/screens/calendar_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import für SystemUiOverlayStyle
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -37,7 +35,6 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  // ... (Der gesamte State-Code von initState bis _openSettings bleibt unverändert)
   List<Event> _userEvents = [];
   List<Event> _holidays = [];
   List<Event> _allEvents = [];
@@ -225,7 +222,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // ... (Diese Methode bleibt unverändert)
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
@@ -351,9 +347,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    // --- ANPASSUNG (Teil 1: Definition der Farben) ---
+    // Wir definieren die Start- und Endfarben für unseren Verlauf.
+
+    // Mische die neutrale Hintergrundfarbe (surface) mit der Akzentfarbe (primaryContainer)
+    // im Verhältnis 70:30, um einen sichtbaren, aber dezenten Grünton zu erhalten.
+    final Color startColor = Color.lerp(
+      colorScheme.surface,
+      colorScheme.primaryContainer,
+      0.3,
+    )!;
+
+    // Die Endfarbe des Verlaufs ist eine sehr dezente, fast neutrale Farbe.
+    final Color endColor = colorScheme.surfaceContainerLow;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Terminkalender'),
+        title: const Text(
+          'Termine im Monat:',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle(
@@ -387,10 +400,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.surfaceContainer,
-              colorScheme.surfaceContainerLow,
-            ],
+            // --- ANPASSUNG (Teil 2: Verwendung der Farben) ---
+            colors: [startColor, endColor],
           ),
         ),
         padding: EdgeInsets.only(
@@ -403,11 +414,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           initialSelectedDate: _selectedDay,
           onTap: _onCalendarTapped,
           firstDayOfWeek: 1,
-          // --- HIER IST DIE KORREKTUR ---
           headerStyle: const CalendarHeaderStyle(
             textAlign: TextAlign.center,
-            backgroundColor: Colors
-                .transparent, // Sorgt dafür, dass der Hintergrund verschwindet
+            backgroundColor: Colors.transparent,
+            textStyle: TextStyle(
+              fontSize: 20, // Eine passende Schriftgröße
+              fontWeight: FontWeight.bold, // Hier wird der Text fett gemacht
+              // Die Farbe wird automatisch vom Theme übernommen
+            ),
           ),
           monthCellBuilder: _monthCellBuilder,
           monthViewSettings: const MonthViewSettings(
