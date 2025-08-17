@@ -1,3 +1,5 @@
+// lib/screens/calendar_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import für SystemUiOverlayStyle
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -363,9 +365,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        // KORREKTUR 1: AppBar-Titel
+        // Dem Titel wird die primäre Theme-Farbe zugewiesen.
+        // `const` wurde entfernt, da `Theme.of(context)` nicht konstant ist.
+        title: Text(
           'Termine im Monat:',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary, // <-- HIER GEÄNDERT
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -414,13 +423,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
           initialSelectedDate: _selectedDay,
           onTap: _onCalendarTapped,
           firstDayOfWeek: 1,
-          headerStyle: const CalendarHeaderStyle(
+          // KORREKTUR 2: Kalender-Header
+          // Dem Header-Textstil wird die primäre Theme-Farbe zugewiesen.
+          // `const` wurde auch hier entfernt.
+          headerStyle: CalendarHeaderStyle(
             textAlign: TextAlign.center,
             backgroundColor: Colors.transparent,
             textStyle: TextStyle(
-              fontSize: 20, // Eine passende Schriftgröße
-              fontWeight: FontWeight.bold, // Hier wird der Text fett gemacht
-              // Die Farbe wird automatisch vom Theme übernommen
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary, // <-- HIER GEÄNDERT
             ),
           ),
           monthCellBuilder: _monthCellBuilder,

@@ -1,7 +1,7 @@
 // lib/screens/settings_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // NEU: Import für SystemUiOverlayStyle
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../generated/build_info.dart';
 import '../services/storage_service.dart';
@@ -14,7 +14,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // ... (Der gesamte State-Code bleibt unverändert)
   final StorageService _storageService = StorageService();
   String _selectedStateCode = 'NW';
   PackageInfo _packageInfo = PackageInfo(
@@ -77,9 +76,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 8.0),
       child: Text(
         title,
+        // --- HIER IST DIE ANPASSUNG ---
+        // Anstatt 'titleLarge' verwenden wir wieder 'titleMedium' als Basis
+        // und fügen eine benutzerdefinierte Schriftgröße von 20.0 hinzu.
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.bold,
+          fontSize: 19.0, // <-- INDIVIDUELLE SCHRIFTGRÖSSE
         ),
       ),
     );
@@ -88,7 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    // NEU: Helligkeit des aktuellen Themes prüfen (hell oder dunkel)
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -96,23 +98,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Einstellungen'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // --- HIER IST DIE KORREKTUR ---
         systemOverlayStyle: SystemUiOverlayStyle(
-          // Macht die Statusleiste selbst transparent
           statusBarColor: Colors.transparent,
-          // Passt die Icon-Farbe an das Theme an
-          // Wenn Dark Mode, dann helle Icons, sonst dunkle Icons
           statusBarIconBrightness: isDarkMode
               ? Brightness.light
-              : Brightness.dark, // Für Android
-          statusBarBrightness: isDarkMode
-              ? Brightness.dark
-              : Brightness.light, // Für iOS
+              : Brightness.dark,
+          statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
         ),
       ),
       extendBodyBehindAppBar: true,
       body: WillPopScope(
-        // ... (Rest des Codes ist unverändert)
         onWillPop: () async {
           Navigator.of(context).pop(true);
           return true;
