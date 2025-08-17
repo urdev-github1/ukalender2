@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 void main() {
   final now = DateTime.now();
-  final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+  final formattedDate = DateFormat('dd-MM-yyyy / HH:mm:ss').format(now);
 
   final content =
       '''
