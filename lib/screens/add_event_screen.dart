@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart'; // NEU: Import für eindeutige IDs
+import 'package:uuid/uuid.dart';
 import '../models/event.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
@@ -29,7 +29,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
   late TimeOfDay _selectedTime;
   late Color _selectedColor;
 
-  // NEU: Eine Instanz zur Generierung von UUIDs
   final Uuid _uuid = const Uuid();
 
   @override
@@ -38,7 +37,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
     _selectedDate = widget.selectedDate;
 
     if (widget.eventToEdit != null) {
-      // Modus "Bearbeiten": Initialisiert die Felder mit den Werten des bestehenden Termins.
       final event = widget.eventToEdit!;
       _titleController.text = event.title;
       _descController.text = event.description ?? '';
@@ -46,7 +44,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
       _selectedTime = TimeOfDay.fromDateTime(event.date);
       _selectedColor = event.color;
     } else {
-      // Modus "Neu erstellen": Setzt Standardwerte.
       _selectedTime = TimeOfDay.now();
       _selectedColor = AppColors.eventColors.first;
     }
@@ -59,18 +56,13 @@ class _AddEventScreenState extends State<AddEventScreen> {
     super.dispose();
   }
 
-  // --- HILFSMETHODEN FÜR DATUMS- UND ZEITAUSWAHL ---
-
   Future<void> _selectDate() async {
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      locale: const Locale(
-        'de',
-        'DE',
-      ), // Stellt sicher, dass der Kalender auf Deutsch ist
+      locale: const Locale('de', 'DE'),
     );
     if (pickedDate != null && pickedDate != _selectedDate) {
       setState(() {
@@ -91,12 +83,11 @@ class _AddEventScreenState extends State<AddEventScreen> {
     }
   }
 
-  // Das Widget für die Farbauswahl bleibt unverändert.
   Widget _buildColorPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Farbe auswählen', style: Theme.of(context).textTheme.titleMedium),
+        Text('Farbauswahl:', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 10),
         Wrap(
           spacing: 12.0,
@@ -130,15 +121,95 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
+  // =======================================================================
+  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+  // =======================================================================
+
+  /// Erstellt ein einheitliches Eingabefeld mit einem externen Label.
+  /// Dies garantiert eine absolut identische Größe für alle Labels.
+  Widget _buildTitledTextField({
+    required BuildContext context,
+    required String label,
+    required TextEditingController controller,
+    String? hintText, // Optionaler Hinweis im Feld selbst
+    String? Function(String?)? validator,
+  }) {
+    // Definiere hier den Stil, der für alle Labels gelten soll.
+    final labelStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+      color: Colors.grey.shade700, // Farbe anpassen, falls gewünscht
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Das Label als eigenständiges Text-Widget
+        Text(label, style: labelStyle),
+        const SizedBox(height: 8.0), // Abstand zwischen Label und Feld
+        // 2. Das TextFormField ohne eigenes labelText
+        TextFormField(
+          controller: controller,
+          decoration: InputDecoration(
+            // Verwende hintText für einen Platzhalter innerhalb des Feldes
+            hintText: hintText,
+            // Entferne labelText, da wir unser eigenes Label haben
+            labelText: null,
+            // Weitere Dekorationen wie Ränder können hier hinzugefügt werden
+            border: const UnderlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+          ),
+          validator: validator,
+        ),
+      ],
+    );
+  }
+  // =======================================================================
+  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+  // =======================================================================
+
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.eventToEdit != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.eventToEdit == null
-              ? 'Neuen Termin erstellen'
-              : 'Termin bearbeiten',
-        ),
+        title: Text(isEditing ? 'Termin bearbeiten' : 'Neuen Termin erstellen'),
+        actions: [
+          if (isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Termin löschen',
+              onPressed: () async {
+                final confirmDelete = await showDialog<bool>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Löschen bestätigen'),
+                      content: const Text(
+                        'Möchten Sie diesen Termin wirklich endgültig löschen?',
+                      ),
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Abbrechen'),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Löschen'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirmDelete == true) {
+                  Navigator.of(context).pop(true);
+                }
+              },
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -148,9 +219,14 @@ class _AddEventScreenState extends State<AddEventScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextFormField(
+                // =======================================================================
+                // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+                // =======================================================================
+                // Verwende die neue Methode, um das Titelfeld zu erstellen
+                _buildTitledTextField(
+                  context: context,
+                  label: 'Titel',
                   controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Titel'),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Bitte geben Sie einen Titel ein.';
@@ -159,22 +235,26 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Beschreibung (optional)',
-                  ),
-                ),
-                const SizedBox(height: 24),
 
-                // KORREKTUR: Implementierte Datums- und Zeitauswahl
+                // Verwende dieselbe Methode für das Beschreibungsfeld
+                _buildTitledTextField(
+                  context: context,
+                  label: 'Beschreibung (optional)',
+                  controller: _descController,
+                ),
+
+                // =======================================================================
+                // ===================== HIER ENDET DIE ÄNDERUNG =========================
+                // =======================================================================
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton.icon(
-                        icon: const Icon(Icons.calendar_today),
+                        icon: const Icon(Icons.calendar_today, size: 24),
                         label: Text(
-                          DateFormat.yMMMd('de_DE').format(_selectedDate),
+                          DateFormat.yMd('de_DE').format(_selectedDate),
+                          style: const TextStyle(fontSize: 17),
                         ),
                         onPressed: _selectDate,
                       ),
@@ -182,8 +262,11 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        label: Text(_selectedTime.format(context)),
+                        icon: const Icon(Icons.access_time, size: 24),
+                        label: Text(
+                          _selectedTime.format(context),
+                          style: const TextStyle(fontSize: 17),
+                        ),
                         onPressed: _selectTime,
                       ),
                     ),
@@ -207,15 +290,11 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           _selectedTime.minute,
                         );
 
-                        // KORREKTUR: Eindeutige ID-Generierung
-                        // Beim Bearbeiten wird die alte ID beibehalten,
-                        // nur bei neuen Terminen wird eine neue generiert.
                         final String eventId =
                             widget.eventToEdit?.id ?? _uuid.v4();
 
-                        // Erstellt das finale Event-Objekt
                         final finalEvent = Event(
-                          id: eventId, // Wichtig: Die ID dem Objekt mitgeben
+                          id: eventId,
                           title: _titleController.text,
                           description: _descController.text.isEmpty
                               ? null
@@ -224,22 +303,24 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           color: _selectedColor,
                         );
 
-                        // Die ID für Benachrichtigungen muss ein Integer sein.
-                        // Der Hash-Code der UUID ist dafür eine sichere Wahl.
                         final int notificationId = eventId.hashCode;
 
-                        // Planen der Benachrichtigungen
                         NotificationService().scheduleReminders(
                           notificationId,
                           finalEvent.title,
                           finalEvent.date,
                         );
 
-                        // Gibt das erstellte/bearbeitete Event an den Kalender-Screen zurück
                         Navigator.of(context).pop(finalEvent);
                       }
                     },
-                    child: const Text('Speichern'),
+                    child: const Text(
+                      'Speichern',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],

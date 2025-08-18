@@ -1,7 +1,7 @@
 // lib/screens/calendar_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Import für SystemUiOverlayStyle
+import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
@@ -10,9 +10,7 @@ import '../services/storage_service.dart';
 import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
-//import '../utils/app_colors.dart'; // <-- DIESE ZEILE HINZUFÜGEN
 
-// Die EventDataSource-Klasse bleibt unverändert.
 class EventDataSource extends CalendarDataSource {
   EventDataSource(List<Event> source) {
     appointments = source;
@@ -159,77 +157,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
-  void _showEventDialog(Event event) {
-    if (event.isHoliday) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(event.title),
-        content: const Text(
-          'Möchten Sie diesen Termin bearbeiten oder löschen?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            child: const Text('Löschen'),
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final bool? shouldDelete = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Löschen bestätigen'),
-                  content: const Text(
-                    'Möchten Sie diesen Termin wirklich löschen?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Nein'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Ja, löschen'),
-                    ),
-                  ],
-                ),
-              );
-              if (shouldDelete == true) {
-                _deleteEvent(event);
-              }
-            },
-          ),
-          TextButton(
-            child: const Text('Bearbeiten'),
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final updatedEvent = await Navigator.push<Event>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddEventScreen(
-                    selectedDate: event.date,
-                    eventToEdit: event,
-                  ),
-                ),
-              );
-              if (updatedEvent != null) {
-                _updateEvent(event, updatedEvent);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =======================================================================
-  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-  // =======================================================================
+  // ENTFERNT: Die Methode _showEventDialog wird nicht mehr benötigt,
+  // da der Bearbeitungs-Screen nun direkt aufgerufen wird.
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // Definiere das heutige Datum (ohne Zeit) für den Vergleich.
     final DateTime now = DateTime.now();
     final bool isToday =
         details.date.year == now.year &&
@@ -278,10 +209,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             width: 24,
             height: 24,
             alignment: Alignment.center,
-            // Die Dekorationslogik wird erweitert.
-            // - Wenn der Tag ausgewählt ist, erhält er den vollen Kreis.
-            // - Wenn er NICHT ausgewählt, aber der HEUTIGE Tag ist,
-            //   erhält er einen dezenten Rahmen in der Primärfarbe.
             decoration: isSelected
                 ? BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
@@ -295,7 +222,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       width: 2.0,
                     ),
                   )
-                : null, // Ansonsten keine besondere Dekoration.
+                : null,
             child: Text(
               details.date.day.toString(),
               style: TextStyle(color: dayNumberColor, fontSize: 14),
@@ -324,8 +251,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     );
                   }
+                  // =======================================================================
+                  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+                  // =======================================================================
                   return GestureDetector(
-                    onLongPress: () => _showEventDialog(event),
+                    // MODIFIZIERT: Die Interaktion wurde von onLongPress auf onTap geändert,
+                    // um die Bearbeitung direkter und intuitiver zu gestalten.
+                    onTap: () async {
+                      // Das Popup-Fenster wird übersprungen. Stattdessen wird direkt der
+                      // Bearbeitungsbildschirm aufgerufen.
+                      final result = await Navigator.push<dynamic>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AddEventScreen(
+                            selectedDate: event.date,
+                            eventToEdit: event,
+                          ),
+                        ),
+                      );
+
+                      // Nach der Rückkehr vom Bearbeitungsbildschirm wird das Ergebnis ausgewertet.
+                      if (result is Event) {
+                        // FALL 1: Ein Event-Objekt wird zurückgegeben -> Der Termin wurde bearbeitet.
+                        _updateEvent(event, result);
+                      } else if (result is bool && result == true) {
+                        // FALL 2: Der boolesche Wert 'true' wird zurückgegeben -> Der Termin wurde gelöscht.
+                        _deleteEvent(event);
+                      }
+                      // Wenn das Ergebnis 'null' ist (z.B. durch Zurück-Button), passiert nichts.
+                    },
+                    // =======================================================================
+                    // ===================== HIER ENDET DIE ÄNDERUNG =========================
+                    // =======================================================================
                     child: Container(
                       margin: const EdgeInsets.only(top: 2.0),
                       padding: const EdgeInsets.symmetric(
@@ -358,10 +315,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // =======================================================================
-  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-  // =======================================================================
-
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
       context,
@@ -377,31 +330,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // --- ANPASSUNG (Teil 1: Definition der Farben) ---
-    // Wir definieren die Start- und Endfarben für unseren Verlauf.
-
-    // Mische die neutrale Hintergrundfarbe (surface) mit der Akzentfarbe (primaryContainer)
-    // im Verhältnis 70:30, um einen sichtbaren, aber dezenten Grünton zu erhalten.
     final Color startColor = Color.lerp(
       colorScheme.surface,
       colorScheme.primaryContainer,
       0.3,
     )!;
-
-    // Die Endfarbe des Verlaufs ist eine sehr dezente, fast neutrale Farbe.
     final Color endColor = colorScheme.surfaceContainerLow;
 
     return Scaffold(
       appBar: AppBar(
-        // KORREKTUR 1: AppBar-Titel
-        // Dem Titel wird die primäre Theme-Farbe zugewiesen.
-        // `const` wurde entfernt, da `Theme.of(context)` nicht konstant ist.
         title: Text(
           'Termine im Monat:',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary, // <-- HIER GEÄNDERT
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -437,7 +380,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            // --- ANPASSUNG (Teil 2: Verwendung der Farben) ---
             colors: [startColor, endColor],
           ),
         ),
@@ -451,16 +393,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
           initialSelectedDate: _selectedDay,
           onTap: _onCalendarTapped,
           firstDayOfWeek: 1,
-          // KORREKTUR 2: Kalender-Header
-          // Dem Header-Textstil wird die primäre Theme-Farbe zugewiesen.
-          // `const` wurde auch hier entfernt.
           headerStyle: CalendarHeaderStyle(
             textAlign: TextAlign.center,
             backgroundColor: Colors.transparent,
             textStyle: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary, // <-- HIER GEÄNDERT
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           monthCellBuilder: _monthCellBuilder,
@@ -479,12 +418,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Color.fromARGB(
-          255,
-          131,
-          185,
-          201,
-        ), // <-- HIER IST DIE ÄNDERUNG
+        backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
           final result = await Navigator.push<Event>(
             context,
