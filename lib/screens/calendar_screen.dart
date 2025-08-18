@@ -293,17 +293,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         color: event.color.withAlpha(204),
                         borderRadius: BorderRadius.circular(0),
                       ),
+
+                      // MODIFIZIERT: Der Text wird nun linksbündig ausgerichtet,
+                      // um eine bessere Lesbarkeit zu gewährleisten.
                       child: Text(
                         event.title,
                         overflow: TextOverflow.clip,
+                        softWrap: false,
                         maxLines: 1,
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.left,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12.2,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
+                      /// DEN AUSKOMMENTIERTEN PROGRAMMTEIL AUF KEINEN FALL LÖSCHEN!!!
+                      // // MODIFIZIERT: Der Text wird nun in einem FittedBox platziert,
+                      // // um eine bessere Skalierung und Anpassung an den verfügbaren Platz zu ermöglichen.
+                      // child: FittedBox(
+                      //   fit: BoxFit.scaleDown, // Verhindert, dass kleiner Text hochskaliert wird
+                      //   alignment: Alignment.center,
+                      //   child: Text(
+                      //     event.title,
+                      //     textAlign: TextAlign.center,
+                      //     style: const TextStyle(
+                      //       color: Colors.white,
+                      //       // Die feste fontSize und fontWeight werden vom FittedBox überschrieben,
+                      //       // können aber als Basis dienen.
+                      //       fontSize: 12.2,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //   ),
+                      // ),
                     ),
                   );
                 }).toList(),
