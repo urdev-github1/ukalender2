@@ -13,7 +13,7 @@ Event _$EventFromJson(Map<String, dynamic> json) => Event(
   date: DateTime.parse(json['date'] as String),
   isHoliday: json['isHoliday'] as bool? ?? false,
   color: json['color'] == null
-      ? AppColors.orange
+      ? AppColors.lightBlue
       : _colorFromJson((json['color'] as num).toInt()),
 );
 

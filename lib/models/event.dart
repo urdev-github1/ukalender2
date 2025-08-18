@@ -27,7 +27,7 @@ class Event {
     this.description,
     required this.date,
     this.isHoliday = false,
-    this.color = AppColors.orange,
+    this.color = AppColors.lightBlue,
   });
 
   // Die Factory und die toJson-Methode bleiben unverändert, aber der Code-Generator

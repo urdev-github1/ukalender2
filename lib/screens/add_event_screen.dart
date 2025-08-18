@@ -45,7 +45,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       _selectedColor = event.color;
     } else {
       _selectedTime = TimeOfDay.now();
-      _selectedColor = AppColors.eventColors.first;
+      _selectedColor = AppColors.eventColors.last;
     }
   }
 
@@ -179,6 +179,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Termin löschen',
               onPressed: () async {
+                // 1. Speichere den Navigator VOR dem asynchronen Aufruf.
+                final navigator = Navigator.of(context);
+
                 final confirmDelete = await showDialog<bool>(
                   context: context,
                   builder: (BuildContext context) {
@@ -204,8 +207,12 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   },
                 );
 
+                // 2. Die mounted-Prüfung ist weiterhin eine gute Praxis.
+                if (!mounted) return;
+
+                // 3. Verwende die gespeicherte Navigator-Instanz anstelle von Navigator.of(context).
                 if (confirmDelete == true) {
-                  Navigator.of(context).pop(true);
+                  navigator.pop(true);
                 }
               },
             ),
@@ -311,6 +318,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           finalEvent.date,
                         );
 
+                        if (!mounted) return;
                         Navigator.of(context).pop(finalEvent);
                       }
                     },
