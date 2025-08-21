@@ -1,4 +1,4 @@
-// lib/screens/calendar_screen.dart
+// library: lib/screens/calendar_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -79,6 +79,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    // Dieser Aufruf lädt die Daten nun aus der SQLite-Datenbank.
     _userEvents = await _storageService.loadEvents();
     await _loadHolidaysForYear(_currentYear);
   }
@@ -103,69 +104,104 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  // =======================================================================
+  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+  // =======================================================================
+
+  /// Fügt ein Event hinzu.
+  /// Zuerst wird der Termin in die Datenbank geschrieben.
+  /// Erst nach erfolgreichem Speichern wird die Benutzeroberfläche (UI) aktualisiert.
   void _addEvent(Event event) {
-    setState(() {
-      _userEvents.add(event);
-      _rebuildEventListAndRefreshDataSource();
+    _storageService.addEvent(event).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _userEvents.add(event);
+        _rebuildEventListAndRefreshDataSource();
+      });
     });
-    _saveUserEvents();
   }
 
+  /// Löscht ein Event.
+  /// Zuerst wird der Termin aus der Datenbank gelöscht.
+  /// Erst danach wird die UI aktualisiert.
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
     final int notificationId = event.id.hashCode;
     NotificationService().cancelReminders(notificationId);
-    setState(() {
-      _userEvents.removeWhere((e) => e.id == event.id);
-      _rebuildEventListAndRefreshDataSource();
+
+    _storageService.deleteEvent(event.id).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _userEvents.removeWhere((e) => e.id == event.id);
+        _rebuildEventListAndRefreshDataSource();
+      });
     });
-    _saveUserEvents();
   }
 
+  /// Aktualisiert ein Event.
+  /// Zuerst wird der aktualisierte Termin in die Datenbank geschrieben.
+  /// Erst danach wird die UI aktualisiert.
   void _updateEvent(Event oldEvent, Event newEvent) {
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
-    setState(() {
-      final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
-      if (index != -1) {
-        _userEvents[index] = newEvent;
-        _rebuildEventListAndRefreshDataSource();
-      }
+
+    _storageService.updateEvent(newEvent).then((_) {
+      if (!mounted) return;
+      setState(() {
+        final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
+        if (index != -1) {
+          _userEvents[index] = newEvent;
+          _rebuildEventListAndRefreshDataSource();
+        }
+      });
     });
-    _saveUserEvents();
   }
 
-  void _saveUserEvents() {
-    _storageService.saveEvents(_userEvents);
-  }
+  /// Diese Methode wird nicht mehr benötigt, da jede Operation (add, update, delete)
+  /// direkt und atomar in die Datenbank schreibt. Das ineffiziente Überschreiben
+  /// der gesamten Liste entfällt.
+  // void _saveUserEvents() {
+  //   _storageService.saveEvents(_userEvents);
+  // }
 
+  /// Importiert Termine und speichert jeden einzeln in der Datenbank.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
+
     if (importedEvents.isNotEmpty) {
+      // Speichere jeden importierten Termin einzeln in der Datenbank.
+      for (final event in importedEvents) {
+        await _storageService.addEvent(event);
+      }
+
+      if (!mounted) return;
+
+      // Aktualisiere die UI, nachdem alle Termine gespeichert wurden.
       setState(() {
         _userEvents.addAll(importedEvents);
         _rebuildEventListAndRefreshDataSource();
       });
-      _saveUserEvents();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${importedEvents.length} Termin(e) erfolgreich importiert.',
-            ),
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${importedEvents.length} Termin(e) erfolgreich importiert.',
           ),
-        );
-      }
+        ),
+      );
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Import abgebrochen oder keine Termine gefunden.'),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Import abgebrochen oder keine Termine gefunden.'),
+        ),
+      );
     }
   }
+
+  // =======================================================================
+  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+  // =======================================================================
 
   void _exportEvents() async {
     if (_userEvents.isEmpty) {
@@ -271,14 +307,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     );
                   }
 
-                  // =======================================================================
-                  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-                  // =======================================================================
-
-                  // Definiere eine lokale Variable für die Farbe
                   final Color eventColor;
-
-                  // Heutiges Datum ohne Zeitanteil für den Vergleich
                   final DateTime now = DateTime.now();
                   final DateTime today = DateTime(now.year, now.month, now.day);
                   final DateTime eventDate = DateTime(
@@ -287,14 +316,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     event.date.day,
                   );
 
-                  // Wende die Farblogik an
                   if (eventDate.isBefore(today)) {
-                    eventColor = const Color(
-                      0xFF00854D,
-                    ); // Grün für vergangene Termine
+                    eventColor = const Color(0xFF00854D);
                   } else {
-                    eventColor = event
-                        .color; // Ursprüngliche Farbe für zukünftige Termine
+                    eventColor = event.color;
                   }
 
                   return GestureDetector(
@@ -322,7 +347,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         vertical: 2.0,
                       ),
                       decoration: BoxDecoration(
-                        // Verwende die ermittelte Farbe
                         color: eventColor.withAlpha(204),
                         borderRadius: BorderRadius.circular(0),
                       ),
@@ -340,9 +364,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   );
-                  // =======================================================================
-                  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-                  // =======================================================================
                 }).toList(),
               ),
             ),

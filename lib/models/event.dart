@@ -8,21 +8,18 @@ part 'event.g.dart';
 
 @JsonSerializable()
 class Event {
-  // NEU: Ein eindeutiger Identifikator für jeden Termin.
-  // Dies ist entscheidend für die Bearbeitung, das Löschen und die Benachrichtigungen.
-  final String id;
-
-  final String title;
-  final String? description;
-  final DateTime date;
-  final bool isHoliday;
+  final String id; // Wird in der DB als TEXT PRIMARY KEY gespeichert
+  final String title; // Wird in der DB als TEXT gespeichert
+  final String?
+  description; // Wird in der DB als TEXT (kann NULL sein) gespeichert
+  final DateTime date; // Wird als TEXT (ISO-8601 String) in der DB gespeichert
+  final bool isHoliday; // Wird als INTEGER (0 oder 1) in der DB gespeichert
 
   @JsonKey(toJson: _colorToJson, fromJson: _colorFromJson)
-  final Color color;
+  final Color color; // Wird als INTEGER (der Farbwert) in der DB gespeichert
 
-  // MODIFIZIERT: Der Konstruktor erfordert jetzt eine 'id'.
   Event({
-    required this.id, // ID ist jetzt ein erforderlicher Parameter
+    required this.id,
     required this.title,
     this.description,
     required this.date,
@@ -30,15 +27,15 @@ class Event {
     this.color = AppColors.lightBlue,
   });
 
-  // Die Factory und die toJson-Methode bleiben unverändert, aber der Code-Generator
-  // wird sie an das neue 'id'-Feld anpassen.
+  // Diese Factory wird von der Datenbank-Hilfsklasse (getAllEvents) verwendet,
+  // um aus einer Map<String, dynamic> wieder ein Event-Objekt zu erstellen.
   factory Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
-  Map<String, dynamic> toJson() => _$EventToJson(this);
 
-  @override
-  String toString() => title;
+  // Diese Methode wird von der Datenbank-Hilfsklasse (insertEvent, updateEvent) verwendet,
+  // um das Event-Objekt in eine Map<String, dynamic> umzuwandeln, die sqflite versteht.
+  Map<String, dynamic> toJson() => _$EventToJson(this);
 }
 
-// Hilfsfunktionen für die Farbe bleiben unverändert.
-int _colorToJson(Color color) => color.toARGB32();
+// Hilfsfunktionen für die Farbe, die von @JsonKey verwendet werden
+int _colorToJson(Color color) => color.value;
 Color _colorFromJson(int value) => Color(value);

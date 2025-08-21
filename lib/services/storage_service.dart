@@ -1,58 +1,57 @@
 // lib/services/storage_service
 
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+// Importiere nicht mehr 'dart:io', 'dart:convert' oder 'path_provider'.
+// Diese Details sind jetzt im DatabaseHelper gekapselt.
 import '../models/event.dart';
+import 'database_helper.dart'; // Der NEUE und wichtigste Import
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  // === Dateibasierte Speicherung für komplexe Event-Listen ===
+  // 1. Instanz des DatabaseHelper als einzige Verbindung zur Datenbank herstellen
+  final dbHelper = DatabaseHelper.instance;
 
-  Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
-  }
-
-  Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/events.json');
-  }
-
+  // 2. loadEvents() wird stark vereinfacht
   Future<List<Event>> loadEvents() async {
-    try {
-      final file = await _localFile;
-      final contents = await file.readAsString();
-      final List<dynamic> json = jsonDecode(contents);
-      return json.map((e) => Event.fromJson(e)).toList();
-    } catch (e) {
-      return [];
-    }
+    // Die gesamte Komplexität des Lesens wird an den dbHelper delegiert.
+    // Wir sagen nur noch "gib mir alle Events", nicht mehr "lies diese Datei".
+    return await dbHelper.getAllEvents();
   }
 
-  Future<File> saveEvents(List<Event> events) async {
-    final file = await _localFile;
-    final List<Map<String, dynamic>> json = events
-        .map((e) => e.toJson())
-        .toList();
-    return file.writeAsString(jsonEncode(json));
+  // 3. Die ineffiziente saveEvents() Methode wird durch granulare Methoden ersetzt
+
+  // Die alte Methode wird nicht mehr benötigt.
+  /*
+  Future<void> saveEvents(List<Event> events) async {
+    // Diese Methode passt nicht mehr zum Datenbank-Ansatz.
+  }
+  */
+
+  // NEUE Methode, um EINEN einzelnen Termin hinzuzufügen.
+  Future<void> addEvent(Event event) async {
+    await dbHelper.insertEvent(event);
+  }
+
+  // NEUE Methode, um EINEN einzelnen Termin zu aktualisieren.
+  Future<void> updateEvent(Event event) async {
+    await dbHelper.updateEvent(event);
+  }
+
+  // NEUE Methode, um EINEN einzelnen Termin anhand seiner ID zu löschen.
+  Future<void> deleteEvent(String id) async {
+    await dbHelper.deleteEvent(id);
   }
 
   // === SharedPreferences für einfache Einstellungen (Bundesland) ===
-
+  // 4. Dieser Teil bleibt zu 100% identisch!
   static const _stateCodeKey = 'user_state_code';
 
   Future<void> saveSelectedState(String stateCode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_stateCodeKey, stateCode);
-    // print('Bundesland gespeichert: $stateCode');
   }
 
-  /// Lädt das gespeicherte Bundesland-Kürzel.
-  /// Gibt 'NW' zurück, falls noch keine Auswahl getroffen wurde.
   Future<String> getSelectedState() async {
     final prefs = await SharedPreferences.getInstance();
-    // KORREKTUR: Der Standardwert wurde von 'NATIONAL' auf 'NW' geändert.
     return prefs.getString(_stateCodeKey) ?? 'NW';
   }
 }
