@@ -22,8 +22,30 @@ class EventDataSource extends CalendarDataSource {
       (appointments![index] as Event).date.add(const Duration(hours: 1));
   @override
   String getSubject(int index) => (appointments![index] as Event).title;
+
   @override
-  Color getColor(int index) => (appointments![index] as Event).color;
+  Color getColor(int index) {
+    final Event event = appointments![index] as Event;
+
+    if (event.isHoliday) {
+      return event.color;
+    }
+
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime eventDate = DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
+    );
+
+    if (eventDate.isBefore(today)) {
+      return const Color(0xFF00854D); // AppColors.green
+    }
+
+    return event.color;
+  }
+
   @override
   bool isAllDay(int index) => (appointments![index] as Event).isHoliday;
 }
@@ -157,9 +179,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
-  // ENTFERNT: Die Methode _showEventDialog wird nicht mehr benötigt,
-  // da der Bearbeitungs-Screen nun direkt aufgerufen wird.
-
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
     final DateTime now = DateTime.now();
     final bool isToday =
@@ -251,15 +270,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     );
                   }
+
                   // =======================================================================
                   // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
                   // =======================================================================
+
+                  // Definiere eine lokale Variable für die Farbe
+                  final Color eventColor;
+
+                  // Heutiges Datum ohne Zeitanteil für den Vergleich
+                  final DateTime now = DateTime.now();
+                  final DateTime today = DateTime(now.year, now.month, now.day);
+                  final DateTime eventDate = DateTime(
+                    event.date.year,
+                    event.date.month,
+                    event.date.day,
+                  );
+
+                  // Wende die Farblogik an
+                  if (eventDate.isBefore(today)) {
+                    eventColor = const Color(
+                      0xFF00854D,
+                    ); // Grün für vergangene Termine
+                  } else {
+                    eventColor = event
+                        .color; // Ursprüngliche Farbe für zukünftige Termine
+                  }
+
                   return GestureDetector(
-                    // MODIFIZIERT: Die Interaktion wurde von onLongPress auf onTap geändert,
-                    // um die Bearbeitung direkter und intuitiver zu gestalten.
                     onTap: () async {
-                      // Das Popup-Fenster wird übersprungen. Stattdessen wird direkt der
-                      // Bearbeitungsbildschirm aufgerufen.
                       final result = await Navigator.push<dynamic>(
                         context,
                         MaterialPageRoute(
@@ -270,19 +309,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       );
 
-                      // Nach der Rückkehr vom Bearbeitungsbildschirm wird das Ergebnis ausgewertet.
                       if (result is Event) {
-                        // FALL 1: Ein Event-Objekt wird zurückgegeben -> Der Termin wurde bearbeitet.
                         _updateEvent(event, result);
                       } else if (result is bool && result == true) {
-                        // FALL 2: Der boolesche Wert 'true' wird zurückgegeben -> Der Termin wurde gelöscht.
                         _deleteEvent(event);
                       }
-                      // Wenn das Ergebnis 'null' ist (z.B. durch Zurück-Button), passiert nichts.
                     },
-                    // =======================================================================
-                    // ===================== HIER ENDET DIE ÄNDERUNG =========================
-                    // =======================================================================
                     child: Container(
                       margin: const EdgeInsets.only(top: 2.0),
                       padding: const EdgeInsets.symmetric(
@@ -290,12 +322,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         vertical: 2.0,
                       ),
                       decoration: BoxDecoration(
-                        color: event.color.withAlpha(204),
+                        // Verwende die ermittelte Farbe
+                        color: eventColor.withAlpha(204),
                         borderRadius: BorderRadius.circular(0),
                       ),
-
-                      // MODIFIZIERT: Der Text wird nun linksbündig ausgerichtet,
-                      // um eine bessere Lesbarkeit zu gewährleisten.
                       child: Text(
                         event.title,
                         overflow: TextOverflow.clip,
@@ -308,27 +338,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
-                      /// DEN AUSKOMMENTIERTEN PROGRAMMTEIL AUF KEINEN FALL LÖSCHEN!!!
-                      // // MODIFIZIERT: Der Text wird nun in einem FittedBox platziert,
-                      // // um eine bessere Skalierung und Anpassung an den verfügbaren Platz zu ermöglichen.
-                      // child: FittedBox(
-                      //   fit: BoxFit.scaleDown, // Verhindert, dass kleiner Text hochskaliert wird
-                      //   alignment: Alignment.center,
-                      //   child: Text(
-                      //     event.title,
-                      //     textAlign: TextAlign.center,
-                      //     style: const TextStyle(
-                      //       color: Colors.white,
-                      //       // Die feste fontSize und fontWeight werden vom FittedBox überschrieben,
-                      //       // können aber als Basis dienen.
-                      //       fontSize: 12.2,
-                      //       fontWeight: FontWeight.bold,
-                      //     ),
-                      //   ),
-                      // ),
                     ),
                   );
+                  // =======================================================================
+                  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+                  // =======================================================================
                 }).toList(),
               ),
             ),

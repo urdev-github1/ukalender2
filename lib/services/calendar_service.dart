@@ -20,6 +20,7 @@ import 'package:icalendar_plus/icalendar.dart' as ical_plus;
 // Importiert das eigene Event-Modell aus der App. Der Alias 'my_event' wird verwendet,
 // um klare Verhältnisse zu schaffen, da auch die Kalender-Pakete eine 'Event'-Klasse haben könnten.
 import '../models/event.dart' as my_event;
+import 'package:intl/intl.dart';
 
 // NEU: Import für die UUID-Generierung
 import 'package:uuid/uuid.dart';
@@ -90,8 +91,17 @@ class CalendarService {
 
     // Ermittelt ein temporäres Verzeichnis auf dem Gerät, um die Datei zu speichern.
     final directory = await getTemporaryDirectory();
-    final path =
-        '${directory.path}/termine.ics'; // Definiert den vollständigen Dateipfad.
+
+    // 1. Hole das aktuelle Datum und die Uhrzeit
+    final now = DateTime.now();
+
+    // 2. Definiere das gewünschte Format (unsere empfohlene Option)
+    final formatter = DateFormat('yyMMdd-HHmm');
+    final timestamp = formatter.format(now);
+
+    // 3. Erstelle den neuen, dynamischen Dateinamen
+    final path = '${directory.path}/Termine_$timestamp.ics';
+
     final file = File(path); // Erstellt ein File-Objekt.
     // Serialisiert das iCalendar-Objekt in einen String im .ics-Format und schreibt diesen in die Datei.
     await file.writeAsString(iCalendar.serialize());
@@ -128,8 +138,10 @@ class CalendarService {
                 id: data['uid']?.toString() ?? _uuid.v4(), // KORREKTUR
                 title: data['summary'],
                 description: data['description'] ?? '',
+                // KORREKTUR: Wandle die eingelesene UTC-Zeit in die lokale Zeit des Geräts um.
                 date: (data['dtstart'] as ical_parser.IcsDateTime)
-                    .toDateTime()!,
+                    .toDateTime()!
+                    .toLocal(),
               ),
             );
           }
