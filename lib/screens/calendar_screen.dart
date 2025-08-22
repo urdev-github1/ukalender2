@@ -1,6 +1,7 @@
-// lib/screens/calendar_screen.dart
+// library: lib/screens/calendar_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
@@ -78,6 +79,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    // Dieser Aufruf lädt die Daten nun aus der SQLite-Datenbank.
     _userEvents = await _storageService.loadEvents();
     await _loadHolidaysForYear(_currentYear);
   }
@@ -102,6 +104,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  // =======================================================================
+  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+  // =======================================================================
+
+  /// Fügt ein Event hinzu.
+  /// Zuerst wird der Termin in die Datenbank geschrieben.
+  /// Erst nach erfolgreichem Speichern wird die Benutzeroberfläche (UI) aktualisiert.
   void _addEvent(Event event) {
     _storageService.addEvent(event).then((_) {
       if (!mounted) return;
@@ -112,6 +121,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Löscht ein Event.
+  /// Zuerst wird der Termin aus der Datenbank gelöscht.
+  /// Erst danach wird die UI aktualisiert.
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
     final int notificationId = event.id.hashCode;
@@ -126,6 +138,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Aktualisiert ein Event.
+  /// Zuerst wird der aktualisierte Termin in die Datenbank geschrieben.
+  /// Erst danach wird die UI aktualisiert.
   void _updateEvent(Event oldEvent, Event newEvent) {
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
@@ -142,16 +157,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Diese Methode wird nicht mehr benötigt, da jede Operation (add, update, delete)
+  /// direkt und atomar in die Datenbank schreibt. Das ineffiziente Überschreiben
+  /// der gesamten Liste entfällt.
+  // void _saveUserEvents() {
+  //   _storageService.saveEvents(_userEvents);
+  // }
+
+  /// Importiert Termine und speichert jeden einzeln in der Datenbank.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
 
     if (importedEvents.isNotEmpty) {
+      // Speichere jeden importierten Termin einzeln in der Datenbank.
       for (final event in importedEvents) {
         await _storageService.addEvent(event);
       }
 
       if (!mounted) return;
 
+      // Aktualisiere die UI, nachdem alle Termine gespeichert wurden.
       setState(() {
         _userEvents.addAll(importedEvents);
         _rebuildEventListAndRefreshDataSource();
@@ -174,6 +199,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  // =======================================================================
+  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+  // =======================================================================
+
   void _exportEvents() async {
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -186,9 +215,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
-  // =======================================================================
-  // ==================== HIER BEGINNT DIE KORREKTUR =======================
-  // =======================================================================
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
     final DateTime now = DateTime.now();
     final bool isToday =
@@ -308,7 +334,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       );
 
-                      if (!mounted) return;
                       if (result is Event) {
                         _updateEvent(event, result);
                       } else if (result is bool && result == true) {
@@ -347,9 +372,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
-  // =======================================================================
-  // ===================== HIER ENDET DIE KORREKTUR ========================
-  // =======================================================================
 
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
@@ -363,17 +385,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final Color startColor = Color.lerp(
+      colorScheme.surface,
+      colorScheme.primaryContainer,
+      0.3,
+    )!;
+    final Color endColor = colorScheme.surfaceContainerLow;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Kalender',
+          'Termine im Monat:',
           style: TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.primary,
           ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-        elevation: 1,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: isDarkMode
+              ? Brightness.light
+              : Brightness.dark,
+          statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.input),
@@ -392,35 +432,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: SfCalendar(
-        view: _calendarView,
-        dataSource: _dataSource,
-        initialDisplayDate: _focusedDay,
-        initialSelectedDate: _selectedDay,
-        onTap: _onCalendarTapped,
-        firstDayOfWeek: 1,
-        headerStyle: CalendarHeaderStyle(
-          textAlign: TextAlign.center,
-          backgroundColor: Colors.transparent,
-          textStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+      extendBodyBehindAppBar: true,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [startColor, endColor],
           ),
         ),
-        monthCellBuilder: _monthCellBuilder,
-        monthViewSettings: const MonthViewSettings(
-          appointmentDisplayMode: MonthAppointmentDisplayMode.none,
-          numberOfWeeksInView: 6,
-          showAgenda: false,
+        padding: EdgeInsets.only(
+          top: kToolbarHeight + MediaQuery.of(context).padding.top,
         ),
-        onViewChanged: (ViewChangedDetails details) {
-          final newYear = details.visibleDates.first.year;
-          if (newYear != _currentYear) {
-            _currentYear = newYear;
-            _loadHolidaysForYear(newYear);
-          }
-        },
+        child: SfCalendar(
+          view: _calendarView,
+          dataSource: _dataSource,
+          initialDisplayDate: _focusedDay,
+          initialSelectedDate: _selectedDay,
+          onTap: _onCalendarTapped,
+          firstDayOfWeek: 1,
+          headerStyle: CalendarHeaderStyle(
+            textAlign: TextAlign.center,
+            backgroundColor: Colors.transparent,
+            textStyle: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          monthCellBuilder: _monthCellBuilder,
+          monthViewSettings: const MonthViewSettings(
+            appointmentDisplayMode: MonthAppointmentDisplayMode.none,
+            numberOfWeeksInView: 6,
+            showAgenda: false,
+          ),
+          onViewChanged: (ViewChangedDetails details) {
+            final newYear = details.visibleDates.first.year;
+            if (newYear != _currentYear) {
+              _currentYear = newYear;
+              _loadHolidaysForYear(newYear);
+            }
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
