@@ -42,7 +42,7 @@ class NotificationService {
 
   /// Zeigt eine sofortige Test-Benachrichtigung an.
   Future<void> showTestNotification() async {
-    //print('--- [NotificationService] Showing IMMEDIATE Test Notification ---');
+    print('--- [NotificationService] Showing IMMEDIATE Test Notification ---');
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'main_channel',
@@ -69,8 +69,8 @@ class NotificationService {
     String body,
     DateTime scheduledTime,
   ) async {
-    //print('--- [NotificationService] Scheduling Notification ---');
-    //print('ID: $id, Title: $title, Scheduled: $scheduledTime');
+    print('--- [NotificationService] Scheduling Notification ---');
+    print('ID: $id, Title: $title, Scheduled: $scheduledTime');
 
     try {
       await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -99,12 +99,13 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      // print('--- [NotificationService] SUCCESSFULLY scheduled notification with ID $id.',
-      // );
+      print(
+        '--- [NotificationService] SUCCESSFULLY scheduled notification with ID $id.',
+      );
     } catch (e) {
-      // print(
-      //   '--- [NotificationService] FAILED to schedule notification with ID $id. Error: $e',
-      // );
+      print(
+        '--- [NotificationService] FAILED to schedule notification with ID $id. Error: $e',
+      );
     }
   }
 
@@ -113,9 +114,9 @@ class NotificationService {
     String title,
     DateTime eventTime,
   ) async {
-    // print(
-    //   '--- [NotificationService] scheduleReminders called for "$title" at $eventTime',
-    // );
+    print(
+      '--- [NotificationService] scheduleReminders called for "$title" at $eventTime',
+    );
 
     final reminderSettings = await _storageService.getReminderMinutes();
     final reminder1Minutes = reminderSettings['reminder1']!;
@@ -134,9 +135,9 @@ class NotificationService {
           reminder1Time,
         );
       } else {
-        // print(
-        //   '--- [NotificationService] Reminder 1 was not scheduled (in past).',
-        // );
+        print(
+          '--- [NotificationService] Reminder 1 was not scheduled (in past).',
+        );
       }
     }
 
@@ -152,9 +153,9 @@ class NotificationService {
           reminder2Time,
         );
       } else {
-        // print(
-        //   '--- [NotificationService] Reminder 2 was not scheduled (in past).',
-        // );
+        print(
+          '--- [NotificationService] Reminder 2 was not scheduled (in past).',
+        );
       }
     }
   }
@@ -162,6 +163,6 @@ class NotificationService {
   Future<void> cancelReminders(int baseId) async {
     await flutterLocalNotificationsPlugin.cancel(baseId);
     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
-    //print('--- [NotificationService] Canceled reminders for base ID $baseId.');
+    print('--- [NotificationService] Canceled reminders for base ID $baseId.');
   }
 }

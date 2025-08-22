@@ -3,6 +3,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+
+    // =======================================================================
+    // ==================== HIER IST DIE ERGÄNZUNG ===========================
+    // Wenden Sie das Google Services Gradle Plugin an (Kotlin-Syntax).
+    id("com.google.gms.google-services")
+    // =======================================================================
 }
 
 android {
@@ -13,7 +19,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true // NEU: Aktiviert das Desugaring
+        isCoreLibraryDesugaringEnabled = true // Ihre bestehende Einstellung
     }
 
     kotlinOptions {
@@ -25,7 +31,7 @@ android {
         applicationId = "de.fludev.ukalender2"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 23 // <<< HIER WURDE DIE ÄNDERUNG VORGENOMMEN
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -44,7 +50,7 @@ flutter {
     source = "../.."
 }
 
-// NEU: Fügen Sie diesen kompletten Block für die Abhängigkeiten hinzu
+// Ihre bestehende Abhängigkeit
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

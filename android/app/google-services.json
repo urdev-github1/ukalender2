@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875105598628",
+    "project_id": "ukalender2-d0561",
+    "storage_bucket": "ukalender2-d0561.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875105598628:android:7388903940872bdb4f3a31",
+        "android_client_info": {
+          "package_name": "de.fludev.ukalender2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwQW1BfSbXQzKumFGCcLXhWqpmNP4SL4M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
