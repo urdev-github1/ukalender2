@@ -55,7 +55,6 @@ dependencies:
   build_runner: ^2.7.0
   sqflite: ^2.4.2
   path: ^1.9.1
-  provider: ^6.1.5+1
 
 dependency_overrides:
   #device_calendar: ^4.3.3
