@@ -6,17 +6,42 @@ import '../utils/app_colors.dart';
 
 part 'event.g.dart';
 
+// =======================================================================
+// ==================== HIER BEGINNEN DIE ÄNDERUNGEN =====================
+// =======================================================================
+
+// Hilfsfunktionen für das Datum, die von @JsonKey verwendet werden
+// Speichert das Datum als ISO-String in der universellen UTC-Zeitzone.
+String _dateToJson(DateTime date) => date.toUtc().toIso8601String();
+
+// Liest das Datum als String und konvertiert es sofort in die lokale Zeit des Geräts.
+// Dies ist die entscheidende Korrektur für das Zeitzonen-Problem.
+DateTime _dateFromJson(String dateString) =>
+    DateTime.parse(dateString).toLocal();
+
+// Hilfsfunktionen für die Farbe, die von @JsonKey verwendet werden
+//int _colorToJson(Color color) => color.value;
+int _colorToJson(Color color) => color.toARGB32();
+Color _colorFromJson(int value) => Color(value);
+
+// =======================================================================
+// ===================== HIER ENDEN DIE ÄNDERUNGEN =======================
+// =======================================================================
+
 @JsonSerializable()
 class Event {
-  final String id; // Wird in der DB als TEXT PRIMARY KEY gespeichert
-  final String title; // Wird in der DB als TEXT gespeichert
-  final String?
-  description; // Wird in der DB als TEXT (kann NULL sein) gespeichert
-  final DateTime date; // Wird als TEXT (ISO-8601 String) in der DB gespeichert
-  final bool isHoliday; // Wird als INTEGER (0 oder 1) in der DB gespeichert
+  final String id;
+  final String title;
+  final String? description;
+  final bool isHoliday;
 
+  // Wende die benutzerdefinierte Konvertierungsfunktion auf das 'date'-Feld an.
+  @JsonKey(toJson: _dateToJson, fromJson: _dateFromJson)
+  final DateTime date;
+
+  // Wende die benutzerdefinierte Konvertierungsfunktion auf das 'color'-Feld an.
   @JsonKey(toJson: _colorToJson, fromJson: _colorFromJson)
-  final Color color; // Wird als INTEGER (der Farbwert) in der DB gespeichert
+  final Color color;
 
   Event({
     required this.id,
@@ -27,15 +52,7 @@ class Event {
     this.color = AppColors.lightBlue,
   });
 
-  // Diese Factory wird von der Datenbank-Hilfsklasse (getAllEvents) verwendet,
-  // um aus einer Map<String, dynamic> wieder ein Event-Objekt zu erstellen.
   factory Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
 
-  // Diese Methode wird von der Datenbank-Hilfsklasse (insertEvent, updateEvent) verwendet,
-  // um das Event-Objekt in eine Map<String, dynamic> umzuwandeln, die sqflite versteht.
   Map<String, dynamic> toJson() => _$EventToJson(this);
 }
-
-// Hilfsfunktionen für die Farbe, die von @JsonKey verwendet werden
-int _colorToJson(Color color) => color.value;
-Color _colorFromJson(int value) => Color(value);

@@ -3,6 +3,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'storage_service.dart';
 
 class NotificationService {
   static final NotificationService _notificationService =
@@ -16,6 +17,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  final StorageService _storageService = StorageService();
 
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -31,24 +33,34 @@ class NotificationService {
         );
 
     tz.initializeTimeZones();
-
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  // NEU: Diese Methode hatten wir bereits im vorherigen Schritt hinzugefügt.
-  // Sie ist wichtig, damit die App überhaupt Benachrichtigungen senden darf.
   Future<void> requestPermissions() async {
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+    // ... (keine Änderungen hier)
+  }
 
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.requestNotificationsPermission();
+  /// Zeigt eine sofortige Test-Benachrichtigung an.
+  Future<void> showTestNotification() async {
+    print('--- [NotificationService] Showing IMMEDIATE Test Notification ---');
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'main_channel',
+          'Main Channel',
+          channelDescription: 'Main channel for notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      99,
+      'Test Benachrichtigung',
+      'Wenn Sie das sehen, funktioniert der Kanal.',
+      platformDetails,
+    );
   }
 
   Future<void> scheduleNotification(
@@ -57,25 +69,44 @@ class NotificationService {
     String body,
     DateTime scheduledTime,
   ) async {
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'main_channel',
-          'Main Channel',
-          channelDescription: 'Main channel for notifications',
-          importance: Importance.max,
-          priority: Priority.high,
+    print('--- [NotificationService] Scheduling Notification ---');
+    print('ID: $id, Title: $title, Scheduled: $scheduledTime');
+
+    try {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'main_channel',
+            'Main Channel',
+            channelDescription: 'Main channel for notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          //iOS: DarwinInitializationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
+        // =======================================================================
+        // ==================== HIER IST DIE ENTSCHEIDENDE ÄNDERUNG ================
+        // =======================================================================
+        // Wir deklarieren den Alarm als "alarmClock". Dies signalisiert dem OS
+        // eine extrem hohe Priorität, die selbst von Huawei respektiert wird.
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        // =======================================================================
+        // =======================================================================
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      print(
+        '--- [NotificationService] SUCCESSFULLY scheduled notification with ID $id.',
+      );
+    } catch (e) {
+      print(
+        '--- [NotificationService] FAILED to schedule notification with ID $id. Error: $e',
+      );
+    }
   }
 
   Future<void> scheduleReminders(
@@ -83,30 +114,55 @@ class NotificationService {
     String title,
     DateTime eventTime,
   ) async {
-    if (eventTime.isAfter(DateTime.now().add(const Duration(hours: 1)))) {
-      await scheduleNotification(
-        baseId,
-        'Erinnerung: $title',
-        'Ihr Termin beginnt in einer Stunde.',
-        eventTime.subtract(const Duration(hours: 1)),
+    print(
+      '--- [NotificationService] scheduleReminders called for "$title" at $eventTime',
+    );
+
+    final reminderSettings = await _storageService.getReminderMinutes();
+    final reminder1Minutes = reminderSettings['reminder1']!;
+    final reminder2Minutes = reminderSettings['reminder2']!;
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+
+    if (reminder1Minutes > 0) {
+      final reminder1Time = eventTime.subtract(
+        Duration(minutes: reminder1Minutes),
       );
+      if (reminder1Time.isAfter(now)) {
+        await scheduleNotification(
+          baseId,
+          'Erinnerung: $title',
+          'Ihr Termin beginnt in $reminder1Minutes Minuten.',
+          reminder1Time,
+        );
+      } else {
+        print(
+          '--- [NotificationService] Reminder 1 was not scheduled (in past).',
+        );
+      }
     }
 
-    if (eventTime.isAfter(DateTime.now().add(const Duration(days: 1)))) {
-      await scheduleNotification(
-        baseId + 1,
-        'Erinnerung: $title',
-        'Ihr Termin beginnt morgen.',
-        eventTime.subtract(const Duration(days: 1)),
+    if (reminder2Minutes > 0) {
+      final reminder2Time = eventTime.subtract(
+        Duration(minutes: reminder2Minutes),
       );
+      if (reminder2Time.isAfter(now)) {
+        await scheduleNotification(
+          baseId + 1,
+          'Erinnerung: $title',
+          'Ihr Termin beginnt in $reminder2Minutes Minuten.',
+          reminder2Time,
+        );
+      } else {
+        print(
+          '--- [NotificationService] Reminder 2 was not scheduled (in past).',
+        );
+      }
     }
   }
 
-  // KORREKTUR: HIER IST DIE FEHLENDE METHODE
   Future<void> cancelReminders(int baseId) async {
-    // Storniert die 1-Stunden-Erinnerung
     await flutterLocalNotificationsPlugin.cancel(baseId);
-    // Storniert die 24-Stunden-Erinnerung
     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
+    print('--- [NotificationService] Canceled reminders for base ID $baseId.');
   }
 }

@@ -1,49 +1,32 @@
-// lib/services/storage_service
+// lib/services/storage_service.dart
 
-// Importiere nicht mehr 'dart:io', 'dart:convert' oder 'path_provider'.
-// Diese Details sind jetzt im DatabaseHelper gekapselt.
 import '../models/event.dart';
-import 'database_helper.dart'; // Der NEUE und wichtigste Import
+import 'database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  // 1. Instanz des DatabaseHelper als einzige Verbindung zur Datenbank herstellen
   final dbHelper = DatabaseHelper.instance;
 
-  // 2. loadEvents() wird stark vereinfacht
   Future<List<Event>> loadEvents() async {
-    // Die gesamte Komplexität des Lesens wird an den dbHelper delegiert.
-    // Wir sagen nur noch "gib mir alle Events", nicht mehr "lies diese Datei".
     return await dbHelper.getAllEvents();
   }
 
-  // 3. Die ineffiziente saveEvents() Methode wird durch granulare Methoden ersetzt
-
-  // Die alte Methode wird nicht mehr benötigt.
-  /*
-  Future<void> saveEvents(List<Event> events) async {
-    // Diese Methode passt nicht mehr zum Datenbank-Ansatz.
-  }
-  */
-
-  // NEUE Methode, um EINEN einzelnen Termin hinzuzufügen.
   Future<void> addEvent(Event event) async {
     await dbHelper.insertEvent(event);
   }
 
-  // NEUE Methode, um EINEN einzelnen Termin zu aktualisieren.
   Future<void> updateEvent(Event event) async {
     await dbHelper.updateEvent(event);
   }
 
-  // NEUE Methode, um EINEN einzelnen Termin anhand seiner ID zu löschen.
   Future<void> deleteEvent(String id) async {
     await dbHelper.deleteEvent(id);
   }
 
-  // === SharedPreferences für einfache Einstellungen (Bundesland) ===
-  // 4. Dieser Teil bleibt zu 100% identisch!
+  // === SharedPreferences für einfache Einstellungen ===
   static const _stateCodeKey = 'user_state_code';
+  static const _reminder1MinutesKey = 'reminder_1_minutes';
+  static const _reminder2MinutesKey = 'reminder_2_minutes';
 
   Future<void> saveSelectedState(String stateCode) async {
     final prefs = await SharedPreferences.getInstance();
@@ -53,5 +36,26 @@ class StorageService {
   Future<String> getSelectedState() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_stateCodeKey) ?? 'NW';
+  }
+
+  Future<void> saveReminderMinutes(int reminder1, int reminder2) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_reminder1MinutesKey, reminder1);
+    await prefs.setInt(_reminder2MinutesKey, reminder2);
+  }
+
+  Future<Map<String, int>> getReminderMinutes() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      // =======================================================================
+      // ==================== HIER IST DIE ÄNDERUNG ============================
+      // =======================================================================
+      // 1. Erinnerung (die weiter entfernte) ist standardmäßig 10 Minuten vorher.
+      'reminder1': prefs.getInt(_reminder1MinutesKey) ?? 10,
+      // 2. Erinnerung (die nähere) ist standardmäßig 5 Minuten vorher.
+      'reminder2': prefs.getInt(_reminder2MinutesKey) ?? 5,
+      // =======================================================================
+      // =======================================================================
+    };
   }
 }
