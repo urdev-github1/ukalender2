@@ -28,8 +28,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   late Color _selectedColor;
-
-  // NEU: Zustand für den Geburtstags-Schalter
   bool _isBirthday = false;
 
   final Uuid _uuid = const Uuid();
@@ -46,10 +44,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
       _selectedDate = event.date;
       _selectedTime = TimeOfDay.fromDateTime(event.date);
       _selectedColor = event.color;
-      // NEU: Initialwert für den Schalter aus dem bestehenden Event setzen
       _isBirthday = event.isBirthday;
     } else {
       _selectedTime = TimeOfDay.now();
+      // Standardfarbe für neue Termine (hellblau)
       _selectedColor = AppColors.eventColors.last;
     }
   }
@@ -126,7 +124,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-  /// Erstellt ein einheitliches Eingabefeld mit einem externen Label.
   Widget _buildTitledTextField({
     required BuildContext context,
     required String label,
@@ -231,18 +228,32 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // NEU: Schalter für die Geburtstagseingabe
                 SwitchListTile(
                   title: const Text('Jährlicher Geburtstag'),
                   subtitle: const Text(
                     'Der Termin wird jedes Jahr wiederholt.',
                   ),
                   value: _isBirthday,
+                  // =======================================================================
+                  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+                  // =======================================================================
                   onChanged: (bool value) {
                     setState(() {
                       _isBirthday = value;
+                      // NEU: Logik zur automatischen Farbzuweisung
+                      if (value) {
+                        // Wenn der Schalter aktiviert wird, setze die Farbe auf Violett.
+                        _selectedColor = AppColors.violet;
+                      } else {
+                        // Wenn der Schalter deaktiviert wird, setze die Farbe
+                        // auf den Standardwert für normale Termine zurück.
+                        _selectedColor = AppColors.lightBlue;
+                      }
                     });
                   },
+                  // =======================================================================
+                  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+                  // =======================================================================
                 ),
                 const SizedBox(height: 16),
 
@@ -260,7 +271,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     ),
                     const SizedBox(width: 12),
 
-                    // NEU: Zeitauswahl wird nur angezeigt, wenn es KEIN Geburtstag ist
                     if (!_isBirthday)
                       Expanded(
                         child: TextButton.icon(
@@ -284,7 +294,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
-                        // NEU: Bei Geburtstagen wird die Zeit auf Mitternacht gesetzt
                         final eventTime = _isBirthday
                             ? const TimeOfDay(hour: 0, minute: 0)
                             : _selectedTime;
@@ -307,22 +316,19 @@ class _AddEventScreenState extends State<AddEventScreen> {
                               ? null
                               : _descController.text,
                           date: eventDateTime,
-                          color: _selectedColor,
-                          // NEU: Das Flag für den Geburtstag wird übergeben
+                          color:
+                              _selectedColor, // Die korrekte Farbe wird gespeichert
                           isBirthday: _isBirthday,
                         );
 
-                        // NEU: Angepasste Logik für Benachrichtigungen
                         DateTime notificationDate = finalEvent.date;
                         if (finalEvent.isBirthday) {
                           final now = DateTime.now();
-                          // Nächster Geburtstag in diesem Jahr
                           DateTime nextBirthday = DateTime(
                             now.year,
                             finalEvent.date.month,
                             finalEvent.date.day,
                           );
-                          // Wenn der Geburtstag dieses Jahr schon war, nimm das nächste Jahr
                           if (nextBirthday.isBefore(now)) {
                             nextBirthday = DateTime(
                               now.year + 1,
@@ -338,7 +344,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                         NotificationService().scheduleReminders(
                           notificationId,
                           finalEvent.title,
-                          notificationDate, // Verwende das korrekte Datum
+                          notificationDate,
                         );
 
                         if (!mounted) return;

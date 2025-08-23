@@ -31,7 +31,6 @@ class EventDataSource extends CalendarDataSource {
       return event.color;
     }
 
-    // Für Geburtstage und normale Termine gelten dieselben Farbregeln
     final DateTime now = DateTime.now();
     final DateTime today = DateTime(now.year, now.month, now.day);
     final DateTime eventDate = DateTime(
@@ -50,7 +49,6 @@ class EventDataSource extends CalendarDataSource {
   @override
   bool isAllDay(int index) {
     final Event event = appointments![index] as Event;
-    // Ein Event ist ganztägig, wenn es ein Feiertag ODER ein Geburtstag ist.
     return event.isHoliday || event.isBirthday;
   }
 }
@@ -98,14 +96,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _rebuildEventListAndRefreshDataSource() {
     setState(() {
       final List<Event> displayEvents = [];
-
-      // 1. Füge alle normalen, nicht-wiederkehrenden Termine hinzu
       displayEvents.addAll(_userEvents.where((event) => !event.isBirthday));
 
-      // 2. Generiere die Geburtstags-Events für die relevanten Jahre
       final birthdayEvents = _userEvents.where((event) => event.isBirthday);
       for (final birthday in birthdayEvents) {
-        // Erstelle Termine für das vorherige, aktuelle und nächste Jahr
         for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
           final targetYear = _currentYear + yearOffset;
           final birthdayInYear = DateTime(
@@ -113,15 +107,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
             birthday.date.month,
             birthday.date.day,
           );
-
           displayEvents.add(birthday.copyWith(date: birthdayInYear));
         }
       }
 
-      // 3. Kombiniere die generierten Termine mit den Feiertagen
       _allEvents = [...displayEvents, ..._holidays];
-
-      // 4. Aktualisiere die Datenquelle für den Kalender
       _dataSource = EventDataSource(_allEvents);
       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
@@ -174,6 +164,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _importEvents() async {
+    // ... (Diese Methode ist unverändert)
     final List<Event> importedEvents = await _calendarService.importEvents();
     if (importedEvents.isNotEmpty) {
       for (final event in importedEvents) {
@@ -202,6 +193,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _exportEvents() async {
+    // ... (Diese Methode ist unverändert)
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -214,12 +206,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
+    // ... (Diese Methode ist unverändert und korrekt)
     final DateTime now = DateTime.now();
     final bool isToday =
         details.date.year == now.year &&
         details.date.month == now.month &&
         details.date.day == now.day;
-
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
@@ -232,10 +224,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _selectedDay!.year == details.date.year &&
         _selectedDay!.month == details.date.month &&
         _selectedDay!.day == details.date.day;
-
     Color dayNumberColor;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     if (isSelected) {
       dayNumberColor = Colors.white;
     } else if (!isCurrentMonth) {
@@ -245,7 +235,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else {
       dayNumberColor = isDark ? Colors.white70 : Colors.black87;
     }
-
     return Container(
       decoration: BoxDecoration(
         color: isHoliday ? Colors.green.withAlpha(38) : Colors.transparent,
@@ -304,7 +293,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     );
                   }
-
                   final Color eventColor;
                   final DateTime now = DateTime.now();
                   final DateTime today = DateTime(now.year, now.month, now.day);
@@ -313,21 +301,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     event.date.month,
                     event.date.day,
                   );
-
                   if (eventDate.isBefore(today)) {
                     eventColor = const Color(0xFF00854D);
                   } else {
                     eventColor = event.color;
                   }
-
                   return GestureDetector(
                     onTap: () async {
-                      // Finde das originale Event in der _userEvents Liste.
                       final Event originalEvent = _userEvents.firstWhere(
                         (e) => e.id == event.id,
                         orElse: () => event,
                       );
-
                       final result = await Navigator.push<dynamic>(
                         context,
                         MaterialPageRoute(
@@ -337,7 +321,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
                       );
-
                       if (result is Event) {
                         _updateEvent(originalEvent, result);
                       } else if (result is bool && result == true) {
@@ -400,6 +383,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // ... (AppBar ist unverändert)
         title: Text(
           'Termine im Monat:',
           style: TextStyle(
@@ -469,21 +453,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
             numberOfWeeksInView: 6,
             showAgenda: false,
           ),
+          // =======================================================================
+          // ==================== HIER IST DIE KORREKTUR ===========================
+          // =======================================================================
+          // Der onViewChanged-Block wurde hierher, an die korrekte Position
+          // innerhalb des SfCalendar-Widgets, verschoben.
           onViewChanged: (ViewChangedDetails details) {
-            // Lade Feiertage neu, wenn das Jahr wechselt
             final newYear = details.visibleDates.first.year;
             if (newYear != _currentYear) {
               setState(() {
                 _currentYear = newYear;
-                _loadHolidaysForYear(
-                  newYear,
-                ); // Löst auch _rebuildEventListAndRefreshDataSource aus
+                _loadHolidaysForYear(newYear);
               });
             }
           },
+          // =======================================================================
+          // =======================================================================
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        // ... (FloatingActionButton ist unverändert)
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
           final result = await Navigator.push<Event>(
