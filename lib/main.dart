@@ -36,8 +36,6 @@ void main() async {
   await NotificationService().init();
   await NotificationService().requestPermissions();
   runApp(const MyApp());
-
-  runApp(const MyApp());
 }
 
 // Der Rest Ihrer main.dart Datei bleibt unverändert
@@ -50,8 +48,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Terminkalender',
-
-      // Helles Thema (Light Mode)
 
       // Helles Thema (Light Mode)
       theme: ThemeData(
@@ -79,32 +75,31 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      // Dunkles Thema (Dark Mode)
+      // // Dunkles Thema (Dark Mode)
+      // darkTheme: ThemeData(
+      //   useMaterial3: true,
+      //   colorScheme: ColorScheme.fromSeed(
+      //     //seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
+      //     seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
+      //     brightness: Brightness.dark,
+      //   ),
 
-      // Dunkles Thema (Dark Mode)
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          //seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
-          seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
-          brightness: Brightness.dark,
-        ),
+      //   cardTheme: CardThemeData(
+      //     elevation: 1,
+      //     shape: RoundedRectangleBorder(
+      //       borderRadius: BorderRadius.circular(12),
+      //     ),
+      //     // --- HIER IST DIE ANPASSUNG ---
+      //     // Auch im Dark Mode wird die nächstdunklere Stufe verwendet.
+      //     color: ColorScheme.fromSeed(
+      //       seedColor: const Color(0xFF006C4E),
+      //       brightness: Brightness.dark,
+      //     ).surfaceContainerHigh, // Von 'surfaceContainer' zu 'surfaceContainerHigh' geändert
+      //   ),
+      // ),
 
-        cardTheme: CardThemeData(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          // --- HIER IST DIE ANPASSUNG ---
-          // Auch im Dark Mode wird die nächstdunklere Stufe verwendet.
-          color: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF006C4E),
-            brightness: Brightness.dark,
-          ).surfaceContainerHigh, // Von 'surfaceContainer' zu 'surfaceContainerHigh' geändert
-        ),
-      ),
-
-      themeMode: ThemeMode.system,
+      //themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

@@ -128,20 +128,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    //final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: isDarkMode
-              ? Brightness.light
-              : Brightness.dark,
-          statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
-        ),
-      ),
+      // appBar: AppBar(
+      //   title: const Text('Einstellungen'),
+      //   backgroundColor: Colors.transparent,
+      //   elevation: 0,
+      //   systemOverlayStyle: SystemUiOverlayStyle(
+      //     statusBarColor: Colors.transparent,
+      //     statusBarIconBrightness: isDarkMode
+      //         ? Brightness.light
+      //         : Brightness.dark,
+      //     statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+      //   ),
+      // ),
       extendBodyBehindAppBar: true,
       body: PopScope(
         canPop: false,
@@ -165,9 +166,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             child: ListView(
-              padding: EdgeInsets.only(
-                top: kToolbarHeight + MediaQuery.of(context).padding.top,
-              ),
+              // padding: EdgeInsets.only(
+              //   top: kToolbarHeight + MediaQuery.of(context).padding.top,
+              // ),
               children: [
                 _buildSectionTitle(context, 'Über die App'),
                 Card(
