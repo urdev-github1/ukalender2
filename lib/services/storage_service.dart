@@ -81,4 +81,9 @@ class StorageService {
       // =======================================================================
     };
   }
+
+  /// NEU: Stellt die Schnittstelle zum Löschen aller Events bereit.
+  Future<void> clearAllEvents() async {
+    await dbHelper.deleteAllEvents();
+  }
 }

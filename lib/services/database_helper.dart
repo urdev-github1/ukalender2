@@ -92,4 +92,10 @@ class DatabaseHelper {
     final db = await instance.database;
     await db.delete('events', where: 'id = ?', whereArgs: [id]);
   }
+
+  /// NEU: Löscht alle Einträge aus der 'events'-Tabelle.
+  Future<void> deleteAllEvents() async {
+    final db = await instance.database;
+    await db.delete('events');
+  }
 }

@@ -128,10 +128,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _addEvent(Event event) {
     _storageService.addEvent(event).then((_) {
       if (!mounted) return;
-      setState(() {
-        _userEvents.add(event);
-        _rebuildEventListAndRefreshDataSource();
-      });
+      _loadInitialData();
     });
   }
 
@@ -142,10 +139,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     _storageService.deleteEvent(event.id).then((_) {
       if (!mounted) return;
-      setState(() {
-        _userEvents.removeWhere((e) => e.id == event.id);
-        _rebuildEventListAndRefreshDataSource();
-      });
+      _loadInitialData();
     });
   }
 
@@ -155,36 +149,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     _storageService.updateEvent(newEvent).then((_) {
       if (!mounted) return;
-      setState(() {
-        final index = _userEvents.indexWhere((e) => e.id == oldEvent.id);
-        if (index != -1) {
-          _userEvents[index] = newEvent;
-          _rebuildEventListAndRefreshDataSource();
-        }
-      });
+      _loadInitialData();
     });
   }
 
   // --- Logik für Import/Export & Backup/Restore ---
 
   void _importEvents() async {
-    // Der Service liest die Datei und gibt uns eine Liste von Event-Objekten zurück.
     final List<Event> importedEvents = await _calendarService.importEvents();
 
     if (importedEvents.isNotEmpty) {
-      // =======================================================================
-      // ==================== HIER IST DIE FINALE KORREKTUR ====================
-      // =======================================================================
-      // Wir rufen `addEvent` auf. Die Logik im DatabaseHelper sorgt dafür,
-      // dass ein Termin entweder NEU EINGEFÜGT wird oder bei einem Konflikt
-      // (gleiche ID) der alte EINFACH ERSETZT wird.
       for (final event in importedEvents) {
+        // Ruft die "Insert or Replace"-Logik auf
         await _storageService.addEvent(event);
       }
-      // =======================================================================
-      // =======================================================================
 
-      // UI nach dem Import aktualisieren, indem alle Daten neu aus der DB geladen werden.
       await _loadInitialData();
 
       if (!mounted) return;
@@ -217,11 +196,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
-  // =======================================================================
-  // ==================== HIER BEGINNEN DIE NEUEN METHODEN =================
-  // =======================================================================
-
-  /// Ruft die Backup-Funktion im CalendarService auf.
   void _performBackup() async {
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -231,55 +205,78 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
       return;
     }
-    // Sichert nur die vom Benutzer erstellten Termine.
     await _calendarService.createInternalBackup(_userEvents);
   }
 
-  /// Ruft die Wiederherstellungs-Funktion auf und verarbeitet die Ergebnisse.
+  /// Ruft die Wiederherstellungs-Funktion auf und lässt den Nutzer die Strategie wählen.
   void _performRestore() async {
+    // 1. Lese die Termine aus der Backup-Datei im Voraus.
     final List<Event> restoredEvents = await _calendarService
         .restoreFromInternalBackup();
 
-    if (restoredEvents.isNotEmpty) {
-      // =======================================================================
-      // ==================== HIER IST DIE FINALE KORREKTUR ====================
-      // =======================================================================
-      // Wir rufen `addEvent` auf. Die Logik im DatabaseHelper sorgt dafür,
-      // dass ein Termin entweder NEU EINGEFÜGT wird oder bei einem Konflikt
-      // (gleiche ID) der alte EINFACH ERSETZT wird.
-      for (final event in restoredEvents) {
-        await _storageService.addEvent(event);
-      }
-      // =======================================================================
-      // =======================================================================
-
-      // Lade alle Daten neu, um die Änderungen auf dem Bildschirm anzuzeigen.
-      await _loadInitialData();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${restoredEvents.length} Termin(e) wiederhergestellt.',
-          ),
-        ),
-      );
-    } else {
+    if (restoredEvents.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
         ),
       );
+      return;
     }
+
+    // 2. Zeige den Dialog an, damit der Nutzer die Strategie wählen kann.
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Backup wiederherstellen'),
+        content: const Text(
+          'Wie möchten Sie das Backup einspielen?\n\n'
+          'Achtung: "Alles Ersetzen" löscht alle Termine, die Sie seit diesem Backup erstellt haben!',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('merge'),
+            child: const Text('Zusammenführen'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop('replace'),
+            child: const Text('Alles Ersetzen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(), // Gibt null zurück
+            child: const Text('Abbrechen'),
+          ),
+        ],
+      ),
+    );
+
+    // 3. Handle die Entscheidung des Nutzers.
+    if (choice == null) return; // Nutzer hat abgebrochen
+
+    if (choice == 'replace') {
+      // Strategie "Alles Ersetzen": Zuerst alles löschen.
+      await _storageService.clearAllEvents();
+    }
+
+    // Füge nun alle Termine aus dem Backup hinzu (oder ersetze bestehende).
+    for (final event in restoredEvents) {
+      await _storageService.addEvent(event);
+    }
+
+    // 4. Lade die UI neu und zeige eine Erfolgsmeldung.
+    await _loadInitialData();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${restoredEvents.length} Termin(e) wiederhergestellt.'),
+      ),
+    );
   }
 
-  // =======================================================================
-  // ===================== HIER ENDEN DIE NEUEN METHODEN ===================
-  // =======================================================================
-
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // ... (Diese Methode ist unverändert und korrekt)
+    // Diese Methode ist unverändert und korrekt
     final DateTime now = DateTime.now();
     final bool isToday =
         details.date.year == now.year &&
@@ -333,7 +330,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ? BoxDecoration(
                     shape: BoxShape.rectangle,
                     border: Border.all(
-                      color: Theme.of((context)).colorScheme.tertiary,
+                      color: Theme.of(context).colorScheme.tertiary,
                       width: 2.0,
                     ),
                   )
@@ -474,10 +471,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
         ),
         actions: [
-          // =======================================================================
-          // ==================== HIER IST DIE UI-ÄNDERUNG =======================
-          // =======================================================================
-          // Ersetzt die einzelnen Icons durch ein übersichtliches Menü.
           PopupMenuButton<String>(
             icon: const Icon(Icons.import_export),
             tooltip: 'Daten importieren/exportieren',
@@ -529,9 +522,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ],
           ),
-          // =======================================================================
-          // ===================== ENDE DER UI-ÄNDERUNG ========================
-          // =======================================================================
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Einstellungen',
@@ -574,7 +564,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             showAgenda: false,
           ),
           onViewChanged: (ViewChangedDetails details) {
-            // Lade Feiertage nach, wenn der Nutzer in ein anderes Jahr scrollt.
             final newYear = details.visibleDates.first.year;
             if (newYear != _currentYear) {
               setState(() {
