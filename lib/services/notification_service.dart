@@ -93,7 +93,7 @@ class NotificationService {
         // =======================================================================
         // Wir deklarieren den Alarm als "alarmClock". Dies signalisiert dem OS
         // eine extrem hohe Priorität, die selbst von Huawei respektiert wird.
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         // =======================================================================
         // =======================================================================
         uiLocalNotificationDateInterpretation:
