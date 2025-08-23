@@ -1,5 +1,3 @@
-// library: lib/screens/calendar_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -17,9 +15,11 @@ class EventDataSource extends CalendarDataSource {
   }
   @override
   DateTime getStartTime(int index) => (appointments![index] as Event).date;
+
   @override
   DateTime getEndTime(int index) =>
       (appointments![index] as Event).date.add(const Duration(hours: 1));
+
   @override
   String getSubject(int index) => (appointments![index] as Event).title;
 
@@ -31,6 +31,7 @@ class EventDataSource extends CalendarDataSource {
       return event.color;
     }
 
+    // Für Geburtstage und normale Termine gelten dieselben Farbregeln
     final DateTime now = DateTime.now();
     final DateTime today = DateTime(now.year, now.month, now.day);
     final DateTime eventDate = DateTime(
@@ -47,7 +48,11 @@ class EventDataSource extends CalendarDataSource {
   }
 
   @override
-  bool isAllDay(int index) => (appointments![index] as Event).isHoliday;
+  bool isAllDay(int index) {
+    final Event event = appointments![index] as Event;
+    // Ein Event ist ganztägig, wenn es ein Feiertag ODER ein Geburtstag ist.
+    return event.isHoliday || event.isBirthday;
+  }
 }
 
 class CalendarScreen extends StatefulWidget {
@@ -69,6 +74,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final HolidayService _holidayService = HolidayService();
   final StorageService _storageService = StorageService();
   final CalendarService _calendarService = CalendarService();
+
   @override
   void initState() {
     super.initState();
@@ -79,7 +85,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    // Dieser Aufruf lädt die Daten nun aus der SQLite-Datenbank.
     _userEvents = await _storageService.loadEvents();
     await _loadHolidaysForYear(_currentYear);
   }
@@ -92,7 +97,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _rebuildEventListAndRefreshDataSource() {
     setState(() {
-      _allEvents = [..._userEvents, ..._holidays];
+      final List<Event> displayEvents = [];
+
+      // 1. Füge alle normalen, nicht-wiederkehrenden Termine hinzu
+      displayEvents.addAll(_userEvents.where((event) => !event.isBirthday));
+
+      // 2. Generiere die Geburtstags-Events für die relevanten Jahre
+      final birthdayEvents = _userEvents.where((event) => event.isBirthday);
+      for (final birthday in birthdayEvents) {
+        // Erstelle Termine für das vorherige, aktuelle und nächste Jahr
+        for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
+          final targetYear = _currentYear + yearOffset;
+          final birthdayInYear = DateTime(
+            targetYear,
+            birthday.date.month,
+            birthday.date.day,
+          );
+
+          displayEvents.add(birthday.copyWith(date: birthdayInYear));
+        }
+      }
+
+      // 3. Kombiniere die generierten Termine mit den Feiertagen
+      _allEvents = [...displayEvents, ..._holidays];
+
+      // 4. Aktualisiere die Datenquelle für den Kalender
       _dataSource = EventDataSource(_allEvents);
       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
@@ -104,13 +133,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // =======================================================================
-  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-  // =======================================================================
-
-  /// Fügt ein Event hinzu.
-  /// Zuerst wird der Termin in die Datenbank geschrieben.
-  /// Erst nach erfolgreichem Speichern wird die Benutzeroberfläche (UI) aktualisiert.
   void _addEvent(Event event) {
     _storageService.addEvent(event).then((_) {
       if (!mounted) return;
@@ -121,9 +143,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  /// Löscht ein Event.
-  /// Zuerst wird der Termin aus der Datenbank gelöscht.
-  /// Erst danach wird die UI aktualisiert.
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
     final int notificationId = event.id.hashCode;
@@ -138,9 +157,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  /// Aktualisiert ein Event.
-  /// Zuerst wird der aktualisierte Termin in die Datenbank geschrieben.
-  /// Erst danach wird die UI aktualisiert.
   void _updateEvent(Event oldEvent, Event newEvent) {
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
@@ -157,31 +173,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  /// Diese Methode wird nicht mehr benötigt, da jede Operation (add, update, delete)
-  /// direkt und atomar in die Datenbank schreibt. Das ineffiziente Überschreiben
-  /// der gesamten Liste entfällt.
-  // void _saveUserEvents() {
-  //   _storageService.saveEvents(_userEvents);
-  // }
-
-  /// Importiert Termine und speichert jeden einzeln in der Datenbank.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
-
     if (importedEvents.isNotEmpty) {
-      // Speichere jeden importierten Termin einzeln in der Datenbank.
       for (final event in importedEvents) {
         await _storageService.addEvent(event);
       }
-
       if (!mounted) return;
-
-      // Aktualisiere die UI, nachdem alle Termine gespeichert wurden.
       setState(() {
         _userEvents.addAll(importedEvents);
         _rebuildEventListAndRefreshDataSource();
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -198,10 +200,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
   }
-
-  // =======================================================================
-  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-  // =======================================================================
 
   void _exportEvents() async {
     if (_userEvents.isEmpty) {
@@ -324,20 +322,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                   return GestureDetector(
                     onTap: () async {
+                      // Finde das originale Event in der _userEvents Liste.
+                      final Event originalEvent = _userEvents.firstWhere(
+                        (e) => e.id == event.id,
+                        orElse: () => event,
+                      );
+
                       final result = await Navigator.push<dynamic>(
                         context,
                         MaterialPageRoute(
                           builder: (_) => AddEventScreen(
-                            selectedDate: event.date,
-                            eventToEdit: event,
+                            selectedDate: originalEvent.date,
+                            eventToEdit: originalEvent,
                           ),
                         ),
                       );
 
                       if (result is Event) {
-                        _updateEvent(event, result);
+                        _updateEvent(originalEvent, result);
                       } else if (result is bool && result == true) {
-                        _deleteEvent(event);
+                        _deleteEvent(originalEvent);
                       }
                     },
                     child: Container(
@@ -387,7 +391,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     final Color startColor = Color.lerp(
       colorScheme.surface,
       colorScheme.primaryContainer,
@@ -467,10 +470,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
             showAgenda: false,
           ),
           onViewChanged: (ViewChangedDetails details) {
+            // Lade Feiertage neu, wenn das Jahr wechselt
             final newYear = details.visibleDates.first.year;
             if (newYear != _currentYear) {
-              _currentYear = newYear;
-              _loadHolidaysForYear(newYear);
+              setState(() {
+                _currentYear = newYear;
+                _loadHolidaysForYear(
+                  newYear,
+                ); // Löst auch _rebuildEventListAndRefreshDataSource aus
+              });
             }
           },
         ),

@@ -23,7 +23,13 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    // Die Datenbank-Version wird auf 2 erhöht.
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   // 4. Erstellen der Tabelle(n)
@@ -34,15 +40,27 @@ class DatabaseHelper {
     const integerType = 'INTEGER NOT NULL';
 
     await db.execute('''
-CREATE TABLE events (
-  id $idType,
-  title $textType,
-  description $textNullableType,
-  date $textType,
-  isHoliday $integerType,
-  color $integerType
-)
-''');
+      CREATE TABLE events (
+      id $idType,
+      title $textType,
+      description $textNullableType,
+      date $textType,
+      isHoliday $integerType,
+      color $integerType,
+      isBirthday $integerType DEFAULT 0
+      )
+      ''');
+  }
+
+  /// NEU: Diese Methode wird aufgerufen, wenn die Datenbank-Version erhöht wird.
+  /// Sie fügt die neue Spalte 'isBirthday' zur bestehenden Tabelle hinzu,
+  /// ohne dass die Nutzer ihre alten Daten verlieren.
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE events ADD COLUMN isBirthday INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   // 5. CRUD-Operationen

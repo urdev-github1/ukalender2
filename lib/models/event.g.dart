@@ -12,6 +12,7 @@ Event _$EventFromJson(Map<String, dynamic> json) => Event(
   description: json['description'] as String?,
   date: _dateFromJson(json['date'] as String),
   isHoliday: json['isHoliday'] as bool? ?? false,
+  isBirthday: json['isBirthday'] as bool? ?? false,
   color: json['color'] == null
       ? AppColors.lightBlue
       : _colorFromJson((json['color'] as num).toInt()),
@@ -22,6 +23,7 @@ Map<String, dynamic> _$EventToJson(Event instance) => <String, dynamic>{
   'title': instance.title,
   'description': instance.description,
   'isHoliday': instance.isHoliday,
+  'isBirthday': instance.isBirthday,
   'date': _dateToJson(instance.date),
   'color': _colorToJson(instance.color),
 };

@@ -29,6 +29,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
   late TimeOfDay _selectedTime;
   late Color _selectedColor;
 
+  // NEU: Zustand für den Geburtstags-Schalter
+  bool _isBirthday = false;
+
   final Uuid _uuid = const Uuid();
 
   @override
@@ -43,6 +46,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
       _selectedDate = event.date;
       _selectedTime = TimeOfDay.fromDateTime(event.date);
       _selectedColor = event.color;
+      // NEU: Initialwert für den Schalter aus dem bestehenden Event setzen
+      _isBirthday = event.isBirthday;
     } else {
       _selectedTime = TimeOfDay.now();
       _selectedColor = AppColors.eventColors.last;
@@ -121,39 +126,28 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-  // =======================================================================
-  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-  // =======================================================================
-
   /// Erstellt ein einheitliches Eingabefeld mit einem externen Label.
-  /// Dies garantiert eine absolut identische Größe für alle Labels.
   Widget _buildTitledTextField({
     required BuildContext context,
     required String label,
     required TextEditingController controller,
-    String? hintText, // Optionaler Hinweis im Feld selbst
+    String? hintText,
     String? Function(String?)? validator,
   }) {
-    // Definiere hier den Stil, der für alle Labels gelten soll.
-    final labelStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-      color: Colors.grey.shade700, // Farbe anpassen, falls gewünscht
-    );
+    final labelStyle = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(color: Colors.grey.shade700);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Das Label als eigenständiges Text-Widget
         Text(label, style: labelStyle),
-        const SizedBox(height: 8.0), // Abstand zwischen Label und Feld
-        // 2. Das TextFormField ohne eigenes labelText
+        const SizedBox(height: 8.0),
         TextFormField(
           controller: controller,
           decoration: InputDecoration(
-            // Verwende hintText für einen Platzhalter innerhalb des Feldes
             hintText: hintText,
-            // Entferne labelText, da wir unser eigenes Label haben
             labelText: null,
-            // Weitere Dekorationen wie Ränder können hier hinzugefügt werden
             border: const UnderlineInputBorder(),
             contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
           ),
@@ -162,9 +156,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
       ],
     );
   }
-  // =======================================================================
-  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-  // =======================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -179,9 +170,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Termin löschen',
               onPressed: () async {
-                // 1. Speichere den Navigator VOR dem asynchronen Aufruf.
                 final navigator = Navigator.of(context);
-
                 final confirmDelete = await showDialog<bool>(
                   context: context,
                   builder: (BuildContext context) {
@@ -207,10 +196,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   },
                 );
 
-                // 2. Die mounted-Prüfung ist weiterhin eine gute Praxis.
                 if (!mounted) return;
-
-                // 3. Verwende die gespeicherte Navigator-Instanz anstelle von Navigator.of(context).
                 if (confirmDelete == true) {
                   navigator.pop(true);
                 }
@@ -226,10 +212,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // =======================================================================
-                // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-                // =======================================================================
-                // Verwende die neue Methode, um das Titelfeld zu erstellen
                 _buildTitledTextField(
                   context: context,
                   label: 'Titel',
@@ -242,18 +224,28 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // Verwende dieselbe Methode für das Beschreibungsfeld
                 _buildTitledTextField(
                   context: context,
                   label: 'Beschreibung (optional)',
                   controller: _descController,
                 ),
-
-                // =======================================================================
-                // ===================== HIER ENDET DIE ÄNDERUNG =========================
-                // =======================================================================
                 const SizedBox(height: 24),
+
+                // NEU: Schalter für die Geburtstagseingabe
+                SwitchListTile(
+                  title: const Text('Jährlicher Geburtstag'),
+                  subtitle: const Text(
+                    'Der Termin wird jedes Jahr wiederholt.',
+                  ),
+                  value: _isBirthday,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _isBirthday = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
                 Row(
                   children: [
                     Expanded(
@@ -267,16 +259,19 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.access_time, size: 24),
-                        label: Text(
-                          _selectedTime.format(context),
-                          style: const TextStyle(fontSize: 17),
+
+                    // NEU: Zeitauswahl wird nur angezeigt, wenn es KEIN Geburtstag ist
+                    if (!_isBirthday)
+                      Expanded(
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.access_time, size: 24),
+                          label: Text(
+                            _selectedTime.format(context),
+                            style: const TextStyle(fontSize: 17),
+                          ),
+                          onPressed: _selectTime,
                         ),
-                        onPressed: _selectTime,
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -289,12 +284,17 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
+                        // NEU: Bei Geburtstagen wird die Zeit auf Mitternacht gesetzt
+                        final eventTime = _isBirthday
+                            ? const TimeOfDay(hour: 0, minute: 0)
+                            : _selectedTime;
+
                         final eventDateTime = DateTime(
                           _selectedDate.year,
                           _selectedDate.month,
                           _selectedDate.day,
-                          _selectedTime.hour,
-                          _selectedTime.minute,
+                          eventTime.hour,
+                          eventTime.minute,
                         );
 
                         final String eventId =
@@ -308,14 +308,37 @@ class _AddEventScreenState extends State<AddEventScreen> {
                               : _descController.text,
                           date: eventDateTime,
                           color: _selectedColor,
+                          // NEU: Das Flag für den Geburtstag wird übergeben
+                          isBirthday: _isBirthday,
                         );
+
+                        // NEU: Angepasste Logik für Benachrichtigungen
+                        DateTime notificationDate = finalEvent.date;
+                        if (finalEvent.isBirthday) {
+                          final now = DateTime.now();
+                          // Nächster Geburtstag in diesem Jahr
+                          DateTime nextBirthday = DateTime(
+                            now.year,
+                            finalEvent.date.month,
+                            finalEvent.date.day,
+                          );
+                          // Wenn der Geburtstag dieses Jahr schon war, nimm das nächste Jahr
+                          if (nextBirthday.isBefore(now)) {
+                            nextBirthday = DateTime(
+                              now.year + 1,
+                              finalEvent.date.month,
+                              finalEvent.date.day,
+                            );
+                          }
+                          notificationDate = nextBirthday;
+                        }
 
                         final int notificationId = eventId.hashCode;
 
                         NotificationService().scheduleReminders(
                           notificationId,
                           finalEvent.title,
-                          finalEvent.date,
+                          notificationDate, // Verwende das korrekte Datum
                         );
 
                         if (!mounted) return;

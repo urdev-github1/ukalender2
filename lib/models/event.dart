@@ -35,6 +35,11 @@ class Event {
   final String? description;
   final bool isHoliday;
 
+  /// NEU: Ein Flag, das anzeigt, ob es sich um einen jährlich
+  /// wiederkehrenden Geburtstag handelt.
+  @JsonKey(defaultValue: false)
+  final bool isBirthday;
+
   // Wende die benutzerdefinierte Konvertierungsfunktion auf das 'date'-Feld an.
   @JsonKey(toJson: _dateToJson, fromJson: _dateFromJson)
   final DateTime date;
@@ -49,10 +54,31 @@ class Event {
     this.description,
     required this.date,
     this.isHoliday = false,
+    this.isBirthday = false, // Standardwert im Konstruktor
     this.color = AppColors.lightBlue,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
 
   Map<String, dynamic> toJson() => _$EventToJson(this);
+
+  Event copyWith({
+    String? id,
+    String? title,
+    String? description,
+    DateTime? date,
+    bool? isHoliday,
+    bool? isBirthday, // Hinzugefügt
+    Color? color,
+  }) {
+    return Event(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      date: date ?? this.date,
+      isHoliday: isHoliday ?? this.isHoliday,
+      isBirthday: isBirthday ?? this.isBirthday, // Hinzugefügt
+      color: color ?? this.color,
+    );
+  }
 }
