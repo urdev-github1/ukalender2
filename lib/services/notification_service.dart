@@ -109,6 +109,9 @@ class NotificationService {
     }
   }
 
+  // =======================================================================
+  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+  // =======================================================================
   Future<void> scheduleReminders(
     int baseId,
     String title,
@@ -118,11 +121,30 @@ class NotificationService {
       '--- [NotificationService] scheduleReminders called for "$title" at $eventTime',
     );
 
-    final reminderSettings = await _storageService.getReminderMinutes();
-    final reminder1Minutes = reminderSettings['reminder1']!;
-    final reminder2Minutes = reminderSettings['reminder2']!;
+    // Prüfen, welcher Benachrichtigungsmodus (Standard oder Test) aktiv ist.
+    final isTestMode = await _storageService.getIsTestNotification();
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
 
+    int reminder1Minutes;
+    int reminder2Minutes;
+
+    // --- LOGIK FÜR DEN TESTMODUS ---
+    if (isTestMode) {
+      print('--- [NotificationService] Running in TEST notification mode.');
+      // Im Testmodus werden die vom Benutzer gespeicherten Werte verwendet.
+      final reminderSettings = await _storageService.getReminderMinutes();
+      reminder1Minutes = reminderSettings['reminder1']!;
+      reminder2Minutes = reminderSettings['reminder2']!;
+    }
+    // --- LOGIK FÜR DEN STANDARDMODUS ---
+    else {
+      print('--- [NotificationService] Running in STANDARD notification mode.');
+      // Im Standardmodus werden die festen Werte (24h / 1h) verwendet.
+      reminder1Minutes = 1440; // 24 * 60
+      reminder2Minutes = 60;
+    }
+
+    // Planen der 1. Benachrichtigung
     if (reminder1Minutes > 0) {
       final reminder1Time = eventTime.subtract(
         Duration(minutes: reminder1Minutes),
@@ -141,6 +163,7 @@ class NotificationService {
       }
     }
 
+    // Planen der 2. Benachrichtigung
     if (reminder2Minutes > 0) {
       final reminder2Time = eventTime.subtract(
         Duration(minutes: reminder2Minutes),
@@ -159,6 +182,9 @@ class NotificationService {
       }
     }
   }
+  // =======================================================================
+  // ===================== HIER ENDET DIE ÄNDERUNG =========================
+  // =======================================================================
 
   Future<void> cancelReminders(int baseId) async {
     await flutterLocalNotificationsPlugin.cancel(baseId);

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../generated/build_info.dart';
-import '../services/notification_service.dart'; // NEUER Import für den Test-Button
+import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -26,6 +26,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late TextEditingController _reminder1Controller;
   late TextEditingController _reminder2Controller;
+
+  // Zustand für den Umschalter
+  bool _isTestNotificationMode = false;
 
   final Map<String, String> _germanStates = {
     'NATIONAL': 'Bundesweit',
@@ -66,12 +69,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadAllSettings() async {
     final savedState = await _storageService.getSelectedState();
     final reminderMinutes = await _storageService.getReminderMinutes();
+    // Lade den Zustand des Umschalters aus dem Speicher
+    final isTestMode = await _storageService.getIsTestNotification();
+
     // Sicherstellen, dass der State noch gemounted ist, bevor setState aufgerufen wird
     if (mounted) {
       setState(() {
         _selectedStateCode = savedState;
-        _reminder1Controller.text = reminderMinutes['reminder1']!.toString();
-        _reminder2Controller.text = reminderMinutes['reminder2']!.toString();
+        _isTestNotificationMode = isTestMode;
+
+        // Setze die Controller-Werte basierend auf dem Modus
+        if (_isTestNotificationMode) {
+          _reminder1Controller.text = reminderMinutes['reminder1']!.toString();
+          _reminder2Controller.text = reminderMinutes['reminder2']!.toString();
+        } else {
+          // Im Standardmodus die festen Werte anzeigen
+          _reminder1Controller.text = '1440';
+          _reminder2Controller.text = '60';
+        }
       });
     }
   }
@@ -98,17 +113,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Schließt die Tastatur, bevor gespeichert wird
     FocusScope.of(context).unfocus();
 
-    final reminder1 = int.tryParse(_reminder1Controller.text) ?? 0;
-    final reminder2 = int.tryParse(_reminder2Controller.text) ?? 0;
-    _storageService.saveReminderMinutes(reminder1, reminder2);
+    // Speichern ist nur im Testmodus möglich und sinnvoll
+    if (_isTestNotificationMode) {
+      final reminder1 = int.tryParse(_reminder1Controller.text) ?? 0;
+      final reminder2 = int.tryParse(_reminder2Controller.text) ?? 0;
+      _storageService.saveReminderMinutes(reminder1, reminder2);
 
-    // Feedback für den Benutzer
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Erinnerungszeiten gespeichert.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+      // Feedback für den Benutzer
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test-Erinnerungszeiten gespeichert.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
@@ -128,26 +146,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    //final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // appBar: AppBar(
-      //   title: const Text('Einstellungen'),
-      //   backgroundColor: Colors.transparent,
-      //   elevation: 0,
-      //   systemOverlayStyle: SystemUiOverlayStyle(
-      //     statusBarColor: Colors.transparent,
-      //     statusBarIconBrightness: isDarkMode
-      //         ? Brightness.light
-      //         : Brightness.dark,
-      //     statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
-      //   ),
-      // ),
       extendBodyBehindAppBar: true,
       body: PopScope(
         canPop: false,
-        // UPDATED: 'onPopInvoked' is replaced with 'onPopInvokedWithResult'
-        // and the callback signature is updated.
         onPopInvokedWithResult: (bool didPop, Object? result) {
           if (didPop) return;
           Navigator.of(context).pop(true);
@@ -166,9 +169,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             child: ListView(
-              // padding: EdgeInsets.only(
-              //   top: kToolbarHeight + MediaQuery.of(context).padding.top,
-              // ),
               children: [
                 _buildSectionTitle(context, 'Über die App'),
                 Card(
@@ -187,9 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: const Text('Build-Zeitpunkt'),
                         subtitle: const Text(BuildInfo.buildTimestamp),
                       ),
-                      // =======================================================================
-                      // ==================== HIER IST DER TEST-BUTTON =========================
-                      // =======================================================================
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8.0),
                         child: TextButton(
@@ -199,8 +196,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: const Text('SOFORT-BENACHRICHTIGUNG TESTEN'),
                         ),
                       ),
-                      // =======================================================================
-                      // =======================================================================
                     ],
                   ),
                 ),
@@ -212,17 +207,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Erinnerungen vor einem Termin (in Minuten).',
+                        // =======================================================================
+                        // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
+                        // =======================================================================
+                        Text(
+                          !_isTestNotificationMode
+                              ? 'Standardmodus: Erinnerungen erfolgen 24h und 1h vor einem Termin.'
+                              : 'Testmodus: Definieren Sie die Erinnerungszeiten in Minuten.',
                         ),
                         const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
                               child: TextField(
+                                // Feld ist nur im Testmodus bedienbar
+                                enabled: _isTestNotificationMode,
                                 controller: _reminder1Controller,
                                 decoration: const InputDecoration(
-                                  labelText: '1. Erinnerung',
+                                  labelText: '1. Erinnerung (Min.)',
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: TextInputType.number,
@@ -234,9 +236,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: TextField(
+                                // Feld ist nur im Testmodus bedienbar
+                                enabled: _isTestNotificationMode,
                                 controller: _reminder2Controller,
                                 decoration: const InputDecoration(
-                                  labelText: '2. Erinnerung',
+                                  labelText: '2. Erinnerung (Min.)',
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: TextInputType.number,
@@ -248,13 +252,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton(
-                            onPressed: _saveReminderSettings,
-                            child: const Text('Speichern'),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            const Text('Standard'),
+                            // Der Umschalter
+                            Switch(
+                              value: _isTestNotificationMode,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isTestNotificationMode = value;
+                                  // Beim Wechsel des Modus, die Texte aktualisieren
+                                  if (value) {
+                                    // Wechsel zu Test: Lade gespeicherte Werte
+                                    _storageService.getReminderMinutes().then((
+                                      minutes,
+                                    ) {
+                                      _reminder1Controller.text =
+                                          minutes['reminder1']!.toString();
+                                      _reminder2Controller.text =
+                                          minutes['reminder2']!.toString();
+                                    });
+                                  } else {
+                                    // Wechsel zu Standard: Setze feste Werte
+                                    _reminder1Controller.text = '1440';
+                                    _reminder2Controller.text = '60';
+                                  }
+                                });
+                                // Speichere die neue Modus-Einstellung sofort
+                                _storageService.saveIsTestNotification(value);
+                              },
+                            ),
+                            const Text('Test'),
+                            const Spacer(), // Flexibler Abstand
+                            // Der Speichern-Button
+                            ElevatedButton(
+                              // Button ist nur im Testmodus aktiv
+                              onPressed: _isTestNotificationMode
+                                  ? _saveReminderSettings
+                                  : null,
+                              child: const Text('Speichern'),
+                            ),
+                          ],
                         ),
+                        // =======================================================================
+                        // ===================== HIER ENDET DIE ÄNDERUNG =========================
+                        // =======================================================================
                       ],
                     ),
                   ),
