@@ -35,6 +35,7 @@ void main() async {
   await initializeDateFormatting('de_DE', null);
   await NotificationService().init();
   await NotificationService().requestPermissions();
+  runApp(const MyApp());
 
   runApp(const MyApp());
 }
@@ -50,40 +51,55 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Terminkalender',
 
       // Helles Thema (Light Mode)
+
+      // Helles Thema (Light Mode)
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
+          //seedColor: const Color(0xFF006C4E), // Ein tiefes Waldgrün
           seedColor: const Color(0xFF006C4E), // Ein tiefes Waldgrün
           brightness: Brightness.light,
         ),
+
+        // Der Scaffold-Hintergrund wird nicht mehr global definiert,
+        // da wir ihn pro Screen mit einem Gradienten versehen.
         cardTheme: CardThemeData(
           elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          // --- HIER IST DIE ANPASSUNG ---
+          // Die Karten bekommen eine etwas dunklere Tönung als der Hintergrund,
+          // damit sie sich klarer abheben.
           color: ColorScheme.fromSeed(
             seedColor: const Color(0xFF006C4E),
             brightness: Brightness.light,
-          ).surfaceContainerHigh,
+          ).surfaceContainerHigh, // Von 'surfaceContainer' zu 'surfaceContainerHigh' geändert
         ),
       ),
+
+      // Dunkles Thema (Dark Mode)
 
       // Dunkles Thema (Dark Mode)
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
+          //seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
           seedColor: const Color(0xFF006C4E), // Dieselbe Samenfarbe
           brightness: Brightness.dark,
         ),
+
         cardTheme: CardThemeData(
           elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          // --- HIER IST DIE ANPASSUNG ---
+          // Auch im Dark Mode wird die nächstdunklere Stufe verwendet.
           color: ColorScheme.fromSeed(
             seedColor: const Color(0xFF006C4E),
             brightness: Brightness.dark,
-          ).surfaceContainerHigh,
+          ).surfaceContainerHigh, // Von 'surfaceContainer' zu 'surfaceContainerHigh' geändert
         ),
       ),
 
