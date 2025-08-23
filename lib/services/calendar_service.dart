@@ -1,152 +1,266 @@
 // lib/services/calendar_service.dart
 
-// Import von Dart-Standardbibliotheken für Dateioperationen (File)
+// Import von Dart-Standardbibliotheken
 import 'dart:io';
-// Import für das Paket 'add_2_calendar', um Termine zum Gerätekalender hinzuzufügen.
-// Das 'as a2c' gibt dem Import einen kurzen Alias, um Namenskonflikte zu vermeiden.
+import 'dart:convert'; // Für JSON-Kodierung und -Dekodierung
+
+// Import von Drittanbieter-Paketen
 import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
-// Import für das Paket 'file_picker', um dem Benutzer die Auswahl einer Datei zu ermöglichen.
 import 'package:file_picker/file_picker.dart';
-// Import für das Paket 'path_provider', um auf Verzeichnisse im Dateisystem zuzugreifen (z.B. temporäre Ordner).
 import 'package:path_provider/path_provider.dart';
-// Import für das Paket 'share_plus', um die systemeigene "Teilen"-Funktion aufzurufen.
 import 'package:share_plus/share_plus.dart';
-
-// Importiert zwei verschiedene Pakete zur Verarbeitung von iCalendar (.ics) Daten.
-// 'icalendar_parser' wird zum Einlesen (Parsen) von .ics-Dateien verwendet.
 import 'package:icalendar_parser/icalendar_parser.dart' as ical_parser;
-// 'icalendar_plus' wird zum Erstellen von .ics-Dateien verwendet.
-import 'package:icalendar_plus/icalendar.dart' as ical_plus;
-// Importiert das eigene Event-Modell aus der App. Der Alias 'my_event' wird verwendet,
-// um klare Verhältnisse zu schaffen, da auch die Kalender-Pakete eine 'Event'-Klasse haben könnten.
-import '../models/event.dart' as my_event;
 import 'package:intl/intl.dart';
-
-// NEU: Import für die UUID-Generierung
 import 'package:uuid/uuid.dart';
+
+// Import des eigenen Event-Modells
+import '../models/event.dart' as my_event;
 
 /// CalendarService ist eine Klasse, die alle Operationen im Zusammenhang mit
 /// dem Gerätekalender und dem Import/Export von Terminen kapselt.
 class CalendarService {
-  // NEU: Eine Instanz des UUID-Generators
   final Uuid _uuid = const Uuid();
 
   /// Fügt ein einzelnes Event zum nativen Kalender des Geräts hinzu.
-  /// Nimmt ein app-internes `my_event.Event`-Objekt entgegen.
   Future<void> addToDeviceCalendar(my_event.Event event) async {
-    // Konvertiert das app-interne Event-Objekt in ein `Event`-Objekt,
-    // das vom `add_2_calendar`-Paket verstanden wird.
     final a2c.Event a2cEvent = a2c.Event(
       title: event.title,
-      description:
-          event.description ??
-          '', // Stellt sicher, dass die Beschreibung nie null ist.
+      description: event.description ?? '',
       startDate: event.date,
-      // Das Enddatum wird hier hartcodiert auf eine Stunde nach dem Startdatum gesetzt.
       endDate: event.date.add(const Duration(hours: 1)),
+      allDay: event.isBirthday,
     );
-    // Ruft die Funktion des Pakets auf, die den "Termin hinzufügen"-Dialog des Betriebssystems öffnet.
     await a2c.Add2Calendar.addEvent2Cal(a2cEvent);
   }
 
-  /// Exportiert eine Liste von app-internen Events in eine .ics-Datei und teilt diese.
+  // =======================================================================
+  // ==== METHODEN FÜR .ICS (KOMPATIBILITÄT MIT ANDEREN KALENDERN) =========
+  // =======================================================================
+
+  /// Exportiert eine Liste von Events durch manuelles Erstellen des iCalendar-Strings.
   Future<void> exportEvents(List<my_event.Event> events) async {
-    // Erstellt die Kopfzeilen für die iCalendar-Datei.
-    // Diese enthalten Metadaten über die erstellende Anwendung.
-    final headers = ical_plus.CalHeaders(
-      // KORREKTUR
-      prodId: '-//My Flutter App//DE',
-      version: '2.0',
-    );
+    final StringBuffer icsContent = StringBuffer();
 
-    // Initialisiert ein iCalendar-Objekt mit den zuvor erstellten Kopfzeilen.
-    final iCalendar = ical_plus.ICalendar.instance(headers); // KORREKTUR
+    icsContent.writeln('BEGIN:VCALENDAR');
+    icsContent.writeln('VERSION:2.0');
+    icsContent.writeln('PRODID:-//My Flutter App//DE');
 
-    // Iteriert durch die übergebene Liste von Events.
-    for (var event in events) {
-      // Es werden nur Termine exportiert, die keine Feiertage sind.
-      if (!event.isHoliday) {
-        // Erstellt für jeden Termin ein iCalendar-konformes VEvent-Objekt.
-        final iCalEvent = ical_plus.VEvent(
-          // KORREKTUR
-          // Eine eindeutige ID (UID) ist wichtig, damit Kalenderprogramme Termine
-          // korrekt zuordnen und aktualisieren können.
-          //uid: '${DateTime.now().millisecondsSinceEpoch}@meine.app',
-          // OPTIMIERTE VERSION:
-          // Nutzt die stabile ID des Events für eine konsistente UID.
-          uid: '${event.id}@meine.app',
-          dtstamp: DateTime.now(), // Zeitstempel der Erstellung.
-          dtstart: event.date, // Startzeitpunkt des Termins.
-          dtend: event.date.add(
-            const Duration(hours: 1),
-          ), // Endzeitpunkt (hier wieder +1 Stunde).
-          summary: event.title, // Der Titel des Termins.
-          description: event.description, // Die Beschreibung des Termins.
-        );
-
-        // Fügt das erstellte VEvent zum iCalendar-Objekt hinzu.
-        iCalendar.add(iCalEvent);
-      }
+    String escapeText(String? text) {
+      if (text == null || text.isEmpty) return '';
+      return text.replaceAll('\n', '\\n');
     }
 
-    // Ermittelt ein temporäres Verzeichnis auf dem Gerät, um die Datei zu speichern.
+    for (var event in events) {
+      if (event.isHoliday) continue;
+
+      final uid = event.id;
+      final title = escapeText(event.title);
+      final description = escapeText(event.description);
+      final dtstamp = DateFormat(
+        "yyyyMMdd'T'HHmmss'Z'",
+      ).format(DateTime.now().toUtc());
+
+      icsContent.writeln('BEGIN:VEVENT');
+      icsContent.writeln('UID:$uid@meine.app');
+      icsContent.writeln('DTSTAMP:$dtstamp');
+      icsContent.writeln('SUMMARY:$title');
+      if (description.isNotEmpty) {
+        icsContent.writeln('DESCRIPTION:$description');
+      }
+
+      if (event.isBirthday) {
+        final date = event.date;
+        final nextDay = DateTime(
+          date.year,
+          date.month,
+          date.day,
+        ).add(const Duration(days: 1));
+        final dtstart = DateFormat('yyyyMMdd').format(date);
+        final dtend = DateFormat('yyyyMMdd').format(nextDay);
+        icsContent.writeln('DTSTART;VALUE=DATE:$dtstart');
+        icsContent.writeln('DTEND;VALUE=DATE:$dtend');
+        icsContent.writeln('RRULE:FREQ=YEARLY');
+      } else {
+        final dtstart = DateFormat(
+          "yyyyMMdd'T'HHmmss'Z'",
+        ).format(event.date.toUtc());
+        final dtend = DateFormat(
+          "yyyyMMdd'T'HHmmss'Z'",
+        ).format(event.date.add(const Duration(hours: 1)).toUtc());
+        icsContent.writeln('DTSTART:$dtstart');
+        icsContent.writeln('DTEND:$dtend');
+      }
+
+      icsContent.writeln('END:VEVENT');
+    }
+
+    icsContent.writeln('END:VCALENDAR');
+
     final directory = await getTemporaryDirectory();
-
-    // 1. Hole das aktuelle Datum und die Uhrzeit
-    final now = DateTime.now();
-
-    // 2. Definiere das gewünschte Format (unsere empfohlene Option)
-    final formatter = DateFormat('yyMMdd-HHmm');
-    final timestamp = formatter.format(now);
-
-    // 3. Erstelle den neuen, dynamischen Dateinamen
+    final timestamp = DateFormat('yyMMdd-HHmm').format(DateTime.now());
     final path = '${directory.path}/Termine_$timestamp.ics';
+    final file = File(path);
+    await file.writeAsString(icsContent.toString());
 
-    final file = File(path); // Erstellt ein File-Objekt.
-    // Serialisiert das iCalendar-Objekt in einen String im .ics-Format und schreibt diesen in die Datei.
-    await file.writeAsString(iCalendar.serialize());
-
-    // Nutzt das 'share_plus'-Paket, um den systemeigenen Teilen-Dialog zu öffnen.
-    // Übergibt einen Begleittext und die erstellte .ics-Datei.
     await SharePlus.instance.share(
       ShareParams(text: 'Hier sind deine Termine', files: [XFile(path)]),
     );
   }
 
-  /// Öffnet einen Dateiauswahldialog, um eine .ics-Datei zu importieren und
-  /// die darin enthaltenen Termine in eine Liste von app-internen Events umzuwandeln.
+  // =======================================================================
+  // ==================== HIER IST DIE ÜBERARBEITETE FUNKTION ================
+  // =======================================================================
+  /// Temporäre Debug-Version von importEvents, um das Problem einzugrenzen.
   Future<List<my_event.Event>> importEvents() async {
+    print("--- Starte den ICS-Import-Prozess ---");
+
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
     );
 
-    if (result != null) {
-      final path = result.files.single.path;
-      if (path != null) {
-        final file = File(path);
-        final icsString = await file.readAsString();
-        final iCalendar = ical_parser.ICalendar.fromString(icsString);
+    if (result == null || result.files.single.path == null) {
+      print("Import abgebrochen: Keine Datei ausgewählt.");
+      return [];
+    }
 
-        final List<my_event.Event> importedEvents = [];
-        for (var data in iCalendar.data) {
-          if (data.containsKey('summary') && data.containsKey('dtstart')) {
-            // MODIFIZIERT: 'id' wird jetzt hinzugefügt.
-            // Wir verwenden die 'uid' aus der .ics-Datei, falls vorhanden.
-            // Andernfalls erzeugen wir eine neue, um die App-Anforderungen zu erfüllen.
-            importedEvents.add(
-              my_event.Event(
-                id: data['uid']?.toString() ?? _uuid.v4(), // KORREKTUR
-                title: data['summary'],
-                description: data['description'] ?? '',
-                // KORREKTUR: Wandle die eingelesene UTC-Zeit in die lokale Zeit des Geräts um.
-                date: (data['dtstart'] as ical_parser.IcsDateTime)
-                    .toDateTime()!
-                    .toLocal(),
-              ),
-            );
-          }
+    final path = result.files.single.path!;
+    final file = File(path);
+    final List<my_event.Event> importedEvents = [];
+
+    print("Datei ausgewählt: $path");
+
+    try {
+      final icsString = await file.readAsString();
+      print(
+        "Datei erfolgreich gelesen. Inhalt hat ${icsString.length} Zeichen.",
+      );
+
+      final iCalendar = ical_parser.ICalendar.fromString(icsString);
+      print(
+        "ICS-Datei geparst. Anzahl der gefundenen Roh-Events: ${iCalendar.data.length}",
+      );
+
+      if (iCalendar.data.isEmpty) {
+        print("WARNUNG: Keine Event-Einträge (VEVENT) in der Datei gefunden.");
+        return [];
+      }
+
+      // Wir geben nur das erste Event aus, um die Konsole nicht zu überfluten
+      bool firstEventPrinted = false;
+
+      for (var data in iCalendar.data) {
+        if (!firstEventPrinted) {
+          print("\n--- Inhalt des ersten Roh-Events ---");
+          print(data);
+          print("----------------------------------\n");
+          firstEventPrinted = true;
         }
-        return importedEvents;
+
+        try {
+          if (!data.containsKey('dtstart')) {
+            print("Event wird übersprungen: Kein 'dtstart'-Feld gefunden.");
+            continue;
+          }
+
+          // **Hier ist der kritische Punkt:** Was ist der Typ von 'dtstart'?
+          print(
+            "Verarbeite Event... 'dtstart' ist vom Typ: ${data['dtstart'].runtimeType}",
+          );
+
+          final ical_parser.IcsDateTime? icsDate = data['dtstart'];
+          final DateTime? startDate = icsDate?.toDateTime();
+
+          if (startDate == null) {
+            print(
+              "FEHLER: Datum konnte nicht verarbeitet werden. 'startDate' ist null. Event wird übersprungen.",
+            );
+            continue;
+          }
+
+          final bool isYearly =
+              data['rrule']?.toString().contains('FREQ=YEARLY') ?? false;
+
+          importedEvents.add(
+            my_event.Event(
+              id: data['uid']?.toString() ?? _uuid.v4(),
+              title: data['summary']?.toString() ?? '(Ohne Titel)',
+              description: data['description']?.toString() ?? '',
+              date: startDate.toLocal(),
+              isBirthday: isYearly,
+            ),
+          );
+        } catch (e) {
+          print(
+            "FEHLER bei der Verarbeitung eines einzelnen Events: $e. Wird übersprungen.",
+          );
+          continue;
+        }
+      }
+
+      print(
+        "--- Import abgeschlossen. ${importedEvents.length} Events wurden erfolgreich verarbeitet. ---",
+      );
+      return importedEvents;
+    } catch (e) {
+      print("FATALER FEHLER beim Lesen oder Parsen der gesamten Datei: $e");
+      return [];
+    }
+  }
+
+  // =======================================================================
+  // === METHODEN FÜR APP-INTERNES BACKUP/RESTORE (VERLUSTFREI) ======
+  // =======================================================================
+
+  /// Erstellt ein vollständiges, app-internes Backup aller User-Termine in einer JSON-Datei.
+  Future<void> createInternalBackup(List<my_event.Event> events) async {
+    if (events.isEmpty) {
+      print("Keine Termine zum Sichern vorhanden.");
+      return;
+    }
+
+    final List<Map<String, dynamic>> jsonList = events
+        .map((event) => event.toJson())
+        .toList();
+
+    const jsonEncoder = JsonEncoder.withIndent('  ');
+    final jsonString = jsonEncoder.convert(jsonList);
+
+    final directory = await getTemporaryDirectory();
+    final timestamp = DateFormat('yyMMdd-HHmm').format(DateTime.now());
+    final path = '${directory.path}/kalender_backup_$timestamp.json';
+    final file = File(path);
+    await file.writeAsString(jsonString);
+
+    await SharePlus.instance.share(
+      ShareParams(text: 'Mein Kalender-Backup', files: [XFile(path)]),
+    );
+  }
+
+  /// Stellt Termine aus einer app-internen JSON-Backup-Datei wieder her.
+  Future<List<my_event.Event>> restoreFromInternalBackup() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final path = result.files.single.path!;
+      final file = File(path);
+
+      try {
+        final jsonString = await file.readAsString();
+        final List<dynamic> jsonList = jsonDecode(jsonString);
+
+        final List<my_event.Event> restoredEvents = jsonList
+            .map(
+              (json) => my_event.Event.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
+
+        return restoredEvents;
+      } catch (e) {
+        print('Fehler beim Wiederherstellen des Backups: $e');
+        return [];
       }
     }
     return [];

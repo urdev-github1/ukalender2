@@ -6,45 +6,32 @@ import '../utils/app_colors.dart';
 
 part 'event.g.dart';
 
-// =======================================================================
-// ==================== HIER BEGINNEN DIE ÄNDERUNGEN =====================
-// =======================================================================
-
-// Hilfsfunktionen für das Datum, die von @JsonKey verwendet werden
-// Speichert das Datum als ISO-String in der universellen UTC-Zeitzone.
+// Hilfsfunktionen
 String _dateToJson(DateTime date) => date.toUtc().toIso8601String();
-
-// Liest das Datum als String und konvertiert es sofort in die lokale Zeit des Geräts.
-// Dies ist die entscheidende Korrektur für das Zeitzonen-Problem.
 DateTime _dateFromJson(String dateString) =>
     DateTime.parse(dateString).toLocal();
 
-// Hilfsfunktionen für die Farbe, die von @JsonKey verwendet werden
-//int _colorToJson(Color color) => color.value;
-int _colorToJson(Color color) => color.toARGB32();
+int _colorToJson(Color color) => color.value;
 Color _colorFromJson(int value) => Color(value);
 
-// =======================================================================
-// ===================== HIER ENDEN DIE ÄNDERUNGEN =======================
-// =======================================================================
+int _boolToInt(bool b) => b ? 1 : 0;
+bool _intToBool(int i) => i == 1;
 
 @JsonSerializable()
 class Event {
   final String id;
   final String title;
   final String? description;
+
+  @JsonKey(toJson: _boolToInt, fromJson: _intToBool)
   final bool isHoliday;
 
-  /// NEU: Ein Flag, das anzeigt, ob es sich um einen jährlich
-  /// wiederkehrenden Geburtstag handelt.
-  @JsonKey(defaultValue: false)
+  @JsonKey(defaultValue: false, toJson: _boolToInt, fromJson: _intToBool)
   final bool isBirthday;
 
-  // Wende die benutzerdefinierte Konvertierungsfunktion auf das 'date'-Feld an.
   @JsonKey(toJson: _dateToJson, fromJson: _dateFromJson)
   final DateTime date;
 
-  // Wende die benutzerdefinierte Konvertierungsfunktion auf das 'color'-Feld an.
   @JsonKey(toJson: _colorToJson, fromJson: _colorFromJson)
   final Color color;
 
@@ -54,7 +41,7 @@ class Event {
     this.description,
     required this.date,
     this.isHoliday = false,
-    this.isBirthday = false, // Standardwert im Konstruktor
+    this.isBirthday = false,
     this.color = AppColors.lightBlue,
   });
 
@@ -62,13 +49,14 @@ class Event {
 
   Map<String, dynamic> toJson() => _$EventToJson(this);
 
+  // copyWith-Methode bleibt unverändert...
   Event copyWith({
     String? id,
     String? title,
     String? description,
     DateTime? date,
     bool? isHoliday,
-    bool? isBirthday, // Hinzugefügt
+    bool? isBirthday,
     Color? color,
   }) {
     return Event(
@@ -77,7 +65,7 @@ class Event {
       description: description ?? this.description,
       date: date ?? this.date,
       isHoliday: isHoliday ?? this.isHoliday,
-      isBirthday: isBirthday ?? this.isBirthday, // Hinzugefügt
+      isBirthday: isBirthday ?? this.isBirthday,
       color: color ?? this.color,
     );
   }

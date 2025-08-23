@@ -1,3 +1,5 @@
+// lib/screens/calendar_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -163,22 +165,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  // --- Logik für Import/Export & Backup/Restore ---
+
   void _importEvents() async {
-    // ... (Diese Methode ist unverändert)
+    // Der Service liest die Datei und gibt uns eine Liste von Event-Objekten zurück.
     final List<Event> importedEvents = await _calendarService.importEvents();
+
     if (importedEvents.isNotEmpty) {
+      // =======================================================================
+      // ==================== HIER IST DIE FINALE KORREKTUR ====================
+      // =======================================================================
+      // Wir rufen `addEvent` auf. Die Logik im DatabaseHelper sorgt dafür,
+      // dass ein Termin entweder NEU EINGEFÜGT wird oder bei einem Konflikt
+      // (gleiche ID) der alte EINFACH ERSETZT wird.
       for (final event in importedEvents) {
         await _storageService.addEvent(event);
       }
+      // =======================================================================
+      // =======================================================================
+
+      // UI nach dem Import aktualisieren, indem alle Daten neu aus der DB geladen werden.
+      await _loadInitialData();
+
       if (!mounted) return;
-      setState(() {
-        _userEvents.addAll(importedEvents);
-        _rebuildEventListAndRefreshDataSource();
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${importedEvents.length} Termin(e) erfolgreich importiert.',
+            '${importedEvents.length} Termin(e) erfolgreich importiert/aktualisiert.',
           ),
         ),
       );
@@ -193,7 +206,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _exportEvents() async {
-    // ... (Diese Methode ist unverändert)
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -204,6 +216,67 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
     await _calendarService.exportEvents(_userEvents);
   }
+
+  // =======================================================================
+  // ==================== HIER BEGINNEN DIE NEUEN METHODEN =================
+  // =======================================================================
+
+  /// Ruft die Backup-Funktion im CalendarService auf.
+  void _performBackup() async {
+    if (_userEvents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Es sind keine Termine für ein Backup vorhanden.'),
+        ),
+      );
+      return;
+    }
+    // Sichert nur die vom Benutzer erstellten Termine.
+    await _calendarService.createInternalBackup(_userEvents);
+  }
+
+  /// Ruft die Wiederherstellungs-Funktion auf und verarbeitet die Ergebnisse.
+  void _performRestore() async {
+    final List<Event> restoredEvents = await _calendarService
+        .restoreFromInternalBackup();
+
+    if (restoredEvents.isNotEmpty) {
+      // =======================================================================
+      // ==================== HIER IST DIE FINALE KORREKTUR ====================
+      // =======================================================================
+      // Wir rufen `addEvent` auf. Die Logik im DatabaseHelper sorgt dafür,
+      // dass ein Termin entweder NEU EINGEFÜGT wird oder bei einem Konflikt
+      // (gleiche ID) der alte EINFACH ERSETZT wird.
+      for (final event in restoredEvents) {
+        await _storageService.addEvent(event);
+      }
+      // =======================================================================
+      // =======================================================================
+
+      // Lade alle Daten neu, um die Änderungen auf dem Bildschirm anzuzeigen.
+      await _loadInitialData();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${restoredEvents.length} Termin(e) wiederhergestellt.',
+          ),
+        ),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
+        ),
+      );
+    }
+  }
+
+  // =======================================================================
+  // ===================== HIER ENDEN DIE NEUEN METHODEN ===================
+  // =======================================================================
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
     // ... (Diese Methode ist unverändert und korrekt)
@@ -260,7 +333,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ? BoxDecoration(
                     shape: BoxShape.rectangle,
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.tertiary,
+                      color: Theme.of((context)).colorScheme.tertiary,
                       width: 2.0,
                     ),
                   )
@@ -383,7 +456,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // ... (AppBar ist unverändert)
         title: Text(
           'Termine im Monat:',
           style: TextStyle(
@@ -402,16 +474,64 @@ class _CalendarScreenState extends State<CalendarScreen> {
           statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.input),
-            tooltip: 'Termine importieren (.ics)',
-            onPressed: _importEvents,
+          // =======================================================================
+          // ==================== HIER IST DIE UI-ÄNDERUNG =======================
+          // =======================================================================
+          // Ersetzt die einzelnen Icons durch ein übersichtliches Menü.
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Daten importieren/exportieren',
+            onSelected: (value) {
+              switch (value) {
+                case 'export_ics':
+                  _exportEvents();
+                  break;
+                case 'import_ics':
+                  _importEvents();
+                  break;
+                case 'backup_json':
+                  _performBackup();
+                  break;
+                case 'restore_json':
+                  _performRestore();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'export_ics',
+                child: ListTile(
+                  leading: Icon(Icons.arrow_upward),
+                  title: Text('Exportieren (.ics)'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'import_ics',
+                child: ListTile(
+                  leading: Icon(Icons.arrow_downward),
+                  title: Text('Importieren (.ics)'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'backup_json',
+                child: ListTile(
+                  leading: Icon(Icons.backup_outlined),
+                  title: Text('Backup erstellen...'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'restore_json',
+                child: ListTile(
+                  leading: Icon(Icons.restore_page_outlined),
+                  title: Text('Backup wiederherstellen...'),
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.output),
-            tooltip: 'Termine exportieren (.ics)',
-            onPressed: _exportEvents,
-          ),
+          // =======================================================================
+          // ===================== ENDE DER UI-ÄNDERUNG ========================
+          // =======================================================================
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Einstellungen',
@@ -453,12 +573,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             numberOfWeeksInView: 6,
             showAgenda: false,
           ),
-          // =======================================================================
-          // ==================== HIER IST DIE KORREKTUR ===========================
-          // =======================================================================
-          // Der onViewChanged-Block wurde hierher, an die korrekte Position
-          // innerhalb des SfCalendar-Widgets, verschoben.
           onViewChanged: (ViewChangedDetails details) {
+            // Lade Feiertage nach, wenn der Nutzer in ein anderes Jahr scrollt.
             final newYear = details.visibleDates.first.year;
             if (newYear != _currentYear) {
               setState(() {
@@ -467,12 +583,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               });
             }
           },
-          // =======================================================================
-          // =======================================================================
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        // ... (FloatingActionButton ist unverändert)
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
           final result = await Navigator.push<Event>(
