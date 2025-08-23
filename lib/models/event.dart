@@ -11,7 +11,7 @@ String _dateToJson(DateTime date) => date.toUtc().toIso8601String();
 DateTime _dateFromJson(String dateString) =>
     DateTime.parse(dateString).toLocal();
 
-int _colorToJson(Color color) => color.value;
+int _colorToJson(Color color) => color.toARGB32();
 Color _colorFromJson(int value) => Color(value);
 
 int _boolToInt(bool b) => b ? 1 : 0;

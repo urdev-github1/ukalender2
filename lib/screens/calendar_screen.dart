@@ -153,20 +153,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // --- Logik für Import/Export & Backup/Restore ---
+  // --- Logic for Import/Export & Backup/Restore ---
 
+  /// **REVISED**: This function now completes all async work first,
+  /// then checks if the widget is still mounted before showing a SnackBar.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
 
     if (importedEvents.isNotEmpty) {
       for (final event in importedEvents) {
-        // Ruft die "Insert or Replace"-Logik auf
+        // "Insert or Replace" logic
         await _storageService.addEvent(event);
       }
-
       await _loadInitialData();
+    }
 
-      if (!mounted) return;
+    // After all async operations, check if the widget is still in the tree.
+    if (!mounted) return;
+
+    if (importedEvents.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -175,7 +180,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
       );
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Import abgebrochen oder keine Termine gefunden.'),
@@ -208,14 +212,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.createInternalBackup(_userEvents);
   }
 
-  /// Ruft die Wiederherstellungs-Funktion auf und lässt den Nutzer die Strategie wählen.
+  /// **REVISED**: This function now includes 'mounted' checks after each
+  /// async operation (await) before using the BuildContext.
   void _performRestore() async {
-    // 1. Lese die Termine aus der Backup-Datei im Voraus.
+    // 1. Read events from the backup file.
     final List<Event> restoredEvents = await _calendarService
         .restoreFromInternalBackup();
 
+    // 2. After the await, check if the widget is still mounted.
+    if (!mounted) return;
+
     if (restoredEvents.isEmpty) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
@@ -224,7 +231,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    // 2. Zeige den Dialog an, damit der Nutzer die Strategie wählen kann.
+    // 3. Show the dialog to let the user choose the strategy.
+    // The context is safe to use here because of the 'mounted' check above.
     final choice = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -244,29 +252,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: const Text('Alles Ersetzen'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Gibt null zurück
+            onPressed: () => Navigator.of(context).pop(), // Returns null
             child: const Text('Abbrechen'),
           ),
         ],
       ),
     );
 
-    // 3. Handle die Entscheidung des Nutzers.
-    if (choice == null) return; // Nutzer hat abgebrochen
+    // 4. After the dialog is closed, the widget might have been unmounted.
+    // Check again before proceeding.
+    if (choice == null || !mounted) return;
 
+    // 5. Handle the user's decision and perform storage operations.
     if (choice == 'replace') {
-      // Strategie "Alles Ersetzen": Zuerst alles löschen.
       await _storageService.clearAllEvents();
     }
 
-    // Füge nun alle Termine aus dem Backup hinzu (oder ersetze bestehende).
     for (final event in restoredEvents) {
       await _storageService.addEvent(event);
     }
 
-    // 4. Lade die UI neu und zeige eine Erfolgsmeldung.
+    // 6. Reload the UI and show a success message.
     await _loadInitialData();
 
+    // 7. Check if mounted one last time before the final SnackBar.
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -276,7 +285,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // Diese Methode ist unverändert und korrekt
+    // This method is unchanged and correct
     final DateTime now = DateTime.now();
     final bool isToday =
         details.date.year == now.year &&
@@ -382,6 +391,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         (e) => e.id == event.id,
                         orElse: () => event,
                       );
+                      // Using context before the 'await' is safe.
                       final result = await Navigator.push<dynamic>(
                         context,
                         MaterialPageRoute(
@@ -391,6 +401,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
                       );
+                      // No context is used after the 'await', so no 'mounted' check is needed here.
                       if (result is Event) {
                         _updateEvent(originalEvent, result);
                       } else if (result is bool && result == true) {
@@ -431,10 +442,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _openSettings() async {
+    // Using context before the 'await' is safe.
     final shouldReload = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
+    // No context is used after the 'await'.
     if (shouldReload == true) {
       _loadHolidaysForYear(_currentYear);
     }
@@ -493,6 +506,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
                 value: 'export_ics',
+                enabled: false,
                 child: ListTile(
                   leading: Icon(Icons.arrow_upward),
                   title: Text('Exportieren (.ics)'),
@@ -577,6 +591,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
+          // Using context before the 'await' is safe.
           final result = await Navigator.push<Event>(
             context,
             MaterialPageRoute(
@@ -584,6 +599,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   AddEventScreen(selectedDate: _selectedDay ?? DateTime.now()),
             ),
           );
+          // No context is used after the 'await'.
           if (result != null) {
             _addEvent(result);
           }

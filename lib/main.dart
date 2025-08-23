@@ -9,7 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 // =======================================================================
 // ==================== NEUER IMPORT HINZUFÜGEN ==========================
-import 'package:firebase_messaging/firebase_messaging.dart';
+//import 'package:firebase_messaging/firebase_messaging.dart';
 // =======================================================================
 
 import 'firebase_options.dart';
@@ -24,12 +24,12 @@ void main() async {
   // Dies ist der "Weckruf" für den Firebase Messaging Dienst.
   // Wir fordern das FCM-Token an. Dieser Prozess startet den persistenten
   // Hintergrunddienst, der die App vor dem Beenden durch das OS schützt.
-  try {
-    final fcmToken = await FirebaseMessaging.instance.getToken();
-    print('--- FCM Token (Bodyguard is active): $fcmToken ---');
-  } catch (e) {
-    print('--- Failed to get FCM token: $e ---');
-  }
+  // try {
+  //   final fcmToken = await FirebaseMessaging.instance.getToken();
+  //   print('--- FCM Token (Bodyguard is active): $fcmToken ---');
+  // } catch (e) {
+  //   print('--- Failed to get FCM token: $e ---');
+  // }
   // =======================================================================
 
   await initializeDateFormatting('de_DE', null);

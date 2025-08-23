@@ -112,14 +112,14 @@ class CalendarService {
   // =======================================================================
   /// Temporäre Debug-Version von importEvents, um das Problem einzugrenzen.
   Future<List<my_event.Event>> importEvents() async {
-    print("--- Starte den ICS-Import-Prozess ---");
+    //print("--- Starte den ICS-Import-Prozess ---");
 
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
     );
 
     if (result == null || result.files.single.path == null) {
-      print("Import abgebrochen: Keine Datei ausgewählt.");
+      //print("Import abgebrochen: Keine Datei ausgewählt.");
       return [];
     }
 
@@ -127,21 +127,21 @@ class CalendarService {
     final file = File(path);
     final List<my_event.Event> importedEvents = [];
 
-    print("Datei ausgewählt: $path");
+    //print("Datei ausgewählt: $path");
 
     try {
       final icsString = await file.readAsString();
-      print(
-        "Datei erfolgreich gelesen. Inhalt hat ${icsString.length} Zeichen.",
-      );
+      // print(
+      //   "Datei erfolgreich gelesen. Inhalt hat ${icsString.length} Zeichen.",
+      // );
 
       final iCalendar = ical_parser.ICalendar.fromString(icsString);
-      print(
-        "ICS-Datei geparst. Anzahl der gefundenen Roh-Events: ${iCalendar.data.length}",
-      );
+      // print(
+      //   "ICS-Datei geparst. Anzahl der gefundenen Roh-Events: ${iCalendar.data.length}",
+      // );
 
       if (iCalendar.data.isEmpty) {
-        print("WARNUNG: Keine Event-Einträge (VEVENT) in der Datei gefunden.");
+        //print("WARNUNG: Keine Event-Einträge (VEVENT) in der Datei gefunden.");
         return [];
       }
 
@@ -150,30 +150,30 @@ class CalendarService {
 
       for (var data in iCalendar.data) {
         if (!firstEventPrinted) {
-          print("\n--- Inhalt des ersten Roh-Events ---");
-          print(data);
-          print("----------------------------------\n");
+          // print("\n--- Inhalt des ersten Roh-Events ---");
+          // print(data);
+          // print("----------------------------------\n");
           firstEventPrinted = true;
         }
 
         try {
           if (!data.containsKey('dtstart')) {
-            print("Event wird übersprungen: Kein 'dtstart'-Feld gefunden.");
+            //print("Event wird übersprungen: Kein 'dtstart'-Feld gefunden.");
             continue;
           }
 
           // **Hier ist der kritische Punkt:** Was ist der Typ von 'dtstart'?
-          print(
-            "Verarbeite Event... 'dtstart' ist vom Typ: ${data['dtstart'].runtimeType}",
-          );
+          // print(
+          //   "Verarbeite Event... 'dtstart' ist vom Typ: ${data['dtstart'].runtimeType}",
+          // );
 
           final ical_parser.IcsDateTime? icsDate = data['dtstart'];
           final DateTime? startDate = icsDate?.toDateTime();
 
           if (startDate == null) {
-            print(
-              "FEHLER: Datum konnte nicht verarbeitet werden. 'startDate' ist null. Event wird übersprungen.",
-            );
+            // print(
+            //   "FEHLER: Datum konnte nicht verarbeitet werden. 'startDate' ist null. Event wird übersprungen.",
+            // );
             continue;
           }
 
@@ -190,19 +190,19 @@ class CalendarService {
             ),
           );
         } catch (e) {
-          print(
-            "FEHLER bei der Verarbeitung eines einzelnen Events: $e. Wird übersprungen.",
-          );
+          // print(
+          //   "FEHLER bei der Verarbeitung eines einzelnen Events: $e. Wird übersprungen.",
+          // );
           continue;
         }
       }
 
-      print(
-        "--- Import abgeschlossen. ${importedEvents.length} Events wurden erfolgreich verarbeitet. ---",
-      );
+      // print(
+      //   "--- Import abgeschlossen. ${importedEvents.length} Events wurden erfolgreich verarbeitet. ---",
+      // );
       return importedEvents;
     } catch (e) {
-      print("FATALER FEHLER beim Lesen oder Parsen der gesamten Datei: $e");
+      //print("FATALER FEHLER beim Lesen oder Parsen der gesamten Datei: $e");
       return [];
     }
   }
@@ -214,7 +214,7 @@ class CalendarService {
   /// Erstellt ein vollständiges, app-internes Backup aller User-Termine in einer JSON-Datei.
   Future<void> createInternalBackup(List<my_event.Event> events) async {
     if (events.isEmpty) {
-      print("Keine Termine zum Sichern vorhanden.");
+      //print("Keine Termine zum Sichern vorhanden.");
       return;
     }
 
@@ -259,7 +259,7 @@ class CalendarService {
 
         return restoredEvents;
       } catch (e) {
-        print('Fehler beim Wiederherstellen des Backups: $e');
+        //print('Fehler beim Wiederherstellen des Backups: $e');
         return [];
       }
     }
