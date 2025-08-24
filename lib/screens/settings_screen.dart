@@ -7,6 +7,7 @@ import '../generated/build_info.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 
+/// Screen für die Einstellungen der App.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -14,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
+/// State-Klasse für den SettingsScreen.
 class _SettingsScreenState extends State<SettingsScreen> {
   final StorageService _storageService = StorageService();
   String _selectedStateCode = 'NW';
@@ -24,11 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     buildNumber: 'Unknown',
   );
 
+  // Controller für die Textfelder der Erinnerungszeiten
   late TextEditingController _reminder1Controller;
   late TextEditingController _reminder2Controller;
 
   bool _isTestNotificationMode = false;
 
+  // Deutsche Bundesländer und deren Codes
   final Map<String, String> _germanStates = {
     'NATIONAL': 'Bundesweit',
     'BW': 'Baden-Württemberg',
@@ -65,6 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  /// Lädt alle gespeicherten Einstellungen und aktualisiert den State.
   Future<void> _loadAllSettings() async {
     final savedState = await _storageService.getSelectedState();
     final reminderMinutes = await _storageService.getReminderMinutes();
@@ -86,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Lädt die Paketinformationen der App.
   Future<void> _loadPackageInfo() async {
     final info = await PackageInfo.fromPlatform();
     if (mounted) {
@@ -95,6 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Handler für die Auswahl eines Bundeslandes.
   void _onStateSelected(String? newCode) {
     if (newCode != null) {
       setState(() {
@@ -104,6 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Speichert die Erinnerungszeiten, wenn der Testmodus aktiv ist.
   void _saveReminderSettings() {
     FocusScope.of(context).unfocus();
 
@@ -121,6 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Baut den Titel für einen Abschnitt im Einstellungsbildschirm.
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 8.0),
@@ -147,6 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (didPop) return;
           Navigator.of(context).pop(true);
         },
+        // Der Hintergrund mit Farbverlauf
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: Container(
@@ -160,6 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+            // Der eigentliche Inhalt des Bildschirms
             child: ListView(
               children: [
                 _buildSectionTitle(context, 'Über die App'),
@@ -191,6 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+                // Abschnitt für Benachrichtigungseinstellungen
                 _buildSectionTitle(context, 'Benachrichtigungen'),
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -205,6 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : 'Testmodus: Definieren Sie die Erinnerungszeiten in Minuten.',
                         ),
                         const SizedBox(height: 16),
+                        // Zwei Textfelder für die Erinnerungszeiten
                         Row(
                           children: [
                             Expanded(
@@ -239,6 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
+                        // Umschalter für den Testmodus
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -280,6 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                // Abschnitt für die Auswahl des Bundeslandes
                 _buildSectionTitle(context, 'Feiertage'),
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),

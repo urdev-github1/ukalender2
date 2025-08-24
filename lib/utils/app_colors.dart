@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+/// Definiert eine Sammlung von Farben, die in der App verwendet werden.
 class AppColors {
   static const Color orange = Color(0xFFFF5929); // HEX: #ff5929
   static const Color green = Color(0xFF00854D); // HEX: #00854d
@@ -11,6 +12,7 @@ class AppColors {
   static const Color blue = Color(0xFF404DAD); // HEX: #404dad
   static const Color lightBlue = Color(0xFF00A1EA); // HEX: #00a1ea
 
+  /// Liste von Farben, die für Ereignisse verwendet werden können.
   static const List<Color> eventColors = [
     orange,
     green,

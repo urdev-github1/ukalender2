@@ -7,10 +7,12 @@ import '../models/event.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 
+/// Screen zum Hinzufügen oder Bearbeiten eines Termins
 class AddEventScreen extends StatefulWidget {
   final DateTime selectedDate;
   final Event? eventToEdit;
 
+  // Konstruktor
   const AddEventScreen({
     super.key,
     required this.selectedDate,
@@ -21,6 +23,7 @@ class AddEventScreen extends StatefulWidget {
   State<AddEventScreen> createState() => _AddEventScreenState();
 }
 
+/// State-Klasse für den AddEventScreen
 class _AddEventScreenState extends State<AddEventScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -30,6 +33,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
   late Color _selectedColor;
   bool _isBirthday = false;
 
+  // UUID-Generator für eindeutige IDs
   final Uuid _uuid = const Uuid();
 
   @override
@@ -37,6 +41,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     super.initState();
     _selectedDate = widget.selectedDate;
 
+    // Die Felder mit den Daten füllen, wenn ein Termin bearbeitet wurde.
     if (widget.eventToEdit != null) {
       final event = widget.eventToEdit!;
       _titleController.text = event.title;
@@ -59,6 +64,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     super.dispose();
   }
 
+  // Datumsauswahl-Dialog anzeigen
   Future<void> _selectDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -74,6 +80,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     }
   }
 
+  // Uhrzeitauswahl-Dialog anzeigen
   Future<void> _selectTime() async {
     final pickedTime = await showTimePicker(
       context: context,
@@ -86,6 +93,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     }
   }
 
+  // Farbauswahl-Widget
   Widget _buildColorPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,6 +132,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
+  // Widget für ein Textfeld mit Titel
   Widget _buildTitledTextField({
     required BuildContext context,
     required String label,
@@ -159,6 +168,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     final isEditing = widget.eventToEdit != null;
 
     return Scaffold(
+      // AppBar mit Titel und Lösch-Button (wenn Bearbeitung)
       appBar: AppBar(
         title: Text(isEditing ? 'Termin bearbeiten' : 'Neuen Termin erstellen'),
         actions: [
@@ -201,6 +211,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
             ),
         ],
       ),
+      // Formular zum Eingeben der Termindaten
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -227,7 +238,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   controller: _descController,
                 ),
                 const SizedBox(height: 24),
-
                 SwitchListTile(
                   title: const Text('Jährlicher Geburtstag'),
                   subtitle: const Text(
@@ -246,7 +256,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
+                // Datum- und Uhrzeitauswahl
                 Row(
                   children: [
                     Expanded(
@@ -260,7 +270,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-
                     if (!_isBirthday)
                       Expanded(
                         child: TextButton.icon(
@@ -275,6 +284,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
+                // Farbauswahl
                 _buildColorPicker(),
                 const SizedBox(height: 30),
                 Center(
@@ -309,7 +319,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                           color: _selectedColor,
                           isBirthday: _isBirthday,
                         );
-
+                        // Benachrichtigung planen
                         DateTime notificationDate = finalEvent.date;
                         if (finalEvent.isBirthday) {
                           final now = DateTime.now();
@@ -330,6 +340,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
                         final int notificationId = eventId.hashCode;
 
+                        // Vorherige Benachrichtigung löschen (falls vorhanden)
                         NotificationService().scheduleReminders(
                           notificationId,
                           finalEvent.title,
@@ -337,6 +348,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                         );
 
                         if (!mounted) return;
+                        // Zurück zur vorherigen Seite mit dem neuen/aktualisierten Termin
                         Navigator.of(context).pop(finalEvent);
                       }
                     },

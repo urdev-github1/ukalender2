@@ -11,24 +11,32 @@ import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 
+/// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
 class EventDataSource extends CalendarDataSource {
+  // Erstellt eine neue Instanz der EventDataSource mit der angegebenen Liste von Terminen.
   EventDataSource(List<Event> source) {
     appointments = source;
   }
+
   @override
+  // Gibt die Startzeit des Termins an der angegebenen Indexposition zurück.
   DateTime getStartTime(int index) => (appointments![index] as Event).date;
 
   @override
+  /// Gibt die Endzeit des Termins an der angegebenen Indexposition zurück.
   DateTime getEndTime(int index) =>
       (appointments![index] as Event).date.add(const Duration(hours: 1));
 
   @override
+  // Gibt den Betreff des Termins an der angegebenen Indexposition zurück.
   String getSubject(int index) => (appointments![index] as Event).title;
 
   @override
+  // Gibt die Farbe des Termins an der angegebenen Indexposition zurück.
   Color getColor(int index) {
     final Event event = appointments![index] as Event;
 
+    // Feiertage behalten ihre definierte Farbe.
     if (event.isHoliday) {
       return event.color;
     }
@@ -41,20 +49,22 @@ class EventDataSource extends CalendarDataSource {
       event.date.day,
     );
 
+    // Vergangene Termine werden in Grün dargestellt.
     if (eventDate.isBefore(today)) {
       return const Color(0xFF00854D); // AppColors.green
     }
-
     return event.color;
   }
 
   @override
+  // Gibt zurück, ob der Termin an der angegebenen Indexposition ganztägig ist.
   bool isAllDay(int index) {
     final Event event = appointments![index] as Event;
     return event.isHoliday || event.isBirthday;
   }
 }
 
+/// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -62,6 +72,7 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
+/// State-Klasse für den Kalenderbildschirm.
 class _CalendarScreenState extends State<CalendarScreen> {
   List<Event> _userEvents = [];
   List<Event> _holidays = [];
@@ -84,22 +95,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadInitialData();
   }
 
+  /// Lädt die initialen Daten, einschließlich Benutzerevents und Feiertage für das aktuelle Jahr.
   Future<void> _loadInitialData() async {
     _userEvents = await _storageService.loadEvents();
     await _loadHolidaysForYear(_currentYear);
   }
 
+  /// Lädt die Feiertage für das angegebene Jahr basierend auf dem ausgewählten Bundesland.
   Future<void> _loadHolidaysForYear(int year) async {
     final stateCode = await _storageService.getSelectedState();
     _holidays = await _holidayService.getHolidays(year, stateCode);
     _rebuildEventListAndRefreshDataSource();
   }
 
+  /// Baut die Liste der anzuzeigenden Events neu auf und aktualisiert die Datenquelle.
   void _rebuildEventListAndRefreshDataSource() {
     setState(() {
       final List<Event> displayEvents = [];
       displayEvents.addAll(_userEvents.where((event) => !event.isBirthday));
 
+      // Geburtstage für das aktuelle, vorherige und nächste Jahr hinzufügen
       final birthdayEvents = _userEvents.where((event) => event.isBirthday);
       for (final birthday in birthdayEvents) {
         for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
@@ -119,12 +134,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Handler für das Tippen auf ein Kalenderelement.
   void _onCalendarTapped(CalendarTapDetails details) {
     setState(() {
       _selectedDay = details.date;
     });
   }
 
+  /// Fügt einen neuen Termin hinzu und lädt die Daten neu.
   void _addEvent(Event event) {
     _storageService.addEvent(event).then((_) {
       if (!mounted) return;
@@ -132,33 +149,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  /// Löscht einen Termin und lädt die Daten neu.
   void _deleteEvent(Event event) {
     if (event.isHoliday) return;
     final int notificationId = event.id.hashCode;
     NotificationService().cancelReminders(notificationId);
 
+    // Entfernt auch alle Erinnerungen, die mit diesem Termin verbunden sind.
     _storageService.deleteEvent(event.id).then((_) {
       if (!mounted) return;
       _loadInitialData();
     });
   }
 
+  /// Aktualisiert einen bestehenden Termin und lädt die Daten neu.
   void _updateEvent(Event oldEvent, Event newEvent) {
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
 
+    // Entfernt auch alle alten Erinnerungen, die mit dem alten Termin verbunden sind.
     _storageService.updateEvent(newEvent).then((_) {
       if (!mounted) return;
       _loadInitialData();
     });
   }
 
+  /// Importiert Termine aus einer .ics-Datei und lädt die Daten neu.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
 
+    // "Insert or Replace" Logik für importierte Termine
     if (importedEvents.isNotEmpty) {
       for (final event in importedEvents) {
-        // "Insert or Replace" logic
         await _storageService.addEvent(event);
       }
       await _loadInitialData();
@@ -183,6 +205,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  /// Exportiert die aktuellen Termine in eine .ics-Datei.
   void _exportEvents() async {
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -195,6 +218,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.exportEvents(_userEvents);
   }
 
+  /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
   void _performBackup() async {
     if (_userEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -207,12 +231,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.createInternalBackup(_userEvents);
   }
 
+  /// Stellt Termine aus einem internen JSON-Backup wieder her.
   void _performRestore() async {
     final List<Event> restoredEvents = await _calendarService
         .restoreFromInternalBackup();
 
     if (!mounted) return;
 
+    // Wenn keine Termine wiederhergestellt wurden, Abbruch.
     if (restoredEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -222,6 +248,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
+    // Dialog zur Auswahl der Wiederherstellungsoption anzeigen.
     final choice = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -248,18 +275,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
 
+    // Abbruch, wenn der Dialog geschlossen oder abgebrochen wurde.
     if (choice == null || !mounted) return;
 
+    // Wenn "Alles Ersetzen" gewählt wurde, alle bestehenden Termine löschen.
     if (choice == 'replace') {
       await _storageService.clearAllEvents();
     }
 
+    // Wiederhergestellte Termine hinzufügen.
     for (final event in restoredEvents) {
       await _storageService.addEvent(event);
     }
 
+    // Daten neu laden, um die Änderungen anzuzeigen.
     await _loadInitialData();
 
+    // Bestätigung anzeigen.
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -268,26 +300,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Baut die Zelle für einen Monatstag in der Kalenderansicht.
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
     final DateTime now = DateTime.now();
+    // Bestimmt, ob der Tag der heutige Tag ist.
     final bool isToday =
         details.date.year == now.year &&
         details.date.month == now.month &&
         details.date.day == now.day;
+    // Bestimmt, ob der Tag ein Feiertag ist.
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
+    // Bestimmt, ob der Tag ein Wochenende ist (Samstag oder Sonntag).
     final bool isWeekend =
         details.date.weekday == DateTime.saturday ||
         details.date.weekday == DateTime.sunday;
+    // Bestimmt, ob der Tag im aktuell angezeigten Monat liegt.
     final bool isCurrentMonth = details.date.month == _focusedDay.month;
+    // Bestimmt, ob der Tag der aktuell ausgewählte Tag ist.
     final bool isSelected =
         _selectedDay != null &&
         _selectedDay!.year == details.date.year &&
         _selectedDay!.month == details.date.month &&
         _selectedDay!.day == details.date.day;
+
     Color dayNumberColor;
+
+    // Bestimmt die Textfarbe für die Tagesnummer basierend auf verschiedenen Zuständen.
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Priorität der Farben: Ausgewählt > Nicht aktueller Monat > Wochenende (kein Feiertag) > Standard
     if (isSelected) {
       dayNumberColor = Colors.white;
     } else if (!isCurrentMonth) {
@@ -297,6 +340,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else {
       dayNumberColor = isDark ? Colors.white70 : Colors.black87;
     }
+    // Baut die Zelle mit entsprechender Dekoration und Terminen.
     return Container(
       decoration: BoxDecoration(
         color: isHoliday ? Colors.green.withAlpha(38) : Colors.transparent,
@@ -422,6 +466,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  /// Öffnet den Einstellungsbildschirm und lädt die Feiertage neu, wenn Änderungen vorgenommen wurden.
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
       context,
@@ -433,6 +478,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   @override
+  // Baut die Benutzeroberfläche des Kalenders.
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -442,7 +488,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       0.3,
     )!;
     final Color endColor = colorScheme.surfaceContainerLow;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -462,6 +507,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               : Brightness.dark,
           statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
         ),
+
+        // Menü- und Einstellungsaktionen in der App-Leiste.
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.import_export),
@@ -482,6 +529,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   break;
               }
             },
+            // Menüeinträge für Import/Export und Backup/Wiederherstellung.
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
                 value: 'export_ics',
@@ -534,6 +582,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         padding: EdgeInsets.only(
           top: kToolbarHeight + MediaQuery.of(context).padding.top,
         ),
+        // Kalenderansicht mit Syncfusion Flutter Calendar.
         child: SfCalendar(
           view: _calendarView,
           dataSource: _dataSource,
@@ -567,6 +616,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           },
         ),
       ),
+      // Schaltfläche zum Hinzufügen neuer Termine.
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
@@ -581,6 +631,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _addEvent(result);
           }
         },
+        // Icon für die Schaltfläche.
         child: const Icon(Icons.add),
       ),
     );

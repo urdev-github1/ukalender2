@@ -3,8 +3,9 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'storage_service.dart';
+import '../services/storage_service.dart';
 
+/// Service zur Verwaltung von lokalen Benachrichtigungen.
 class NotificationService {
   static final NotificationService _notificationService =
       NotificationService._internal();
@@ -13,12 +14,16 @@ class NotificationService {
     return _notificationService;
   }
 
+  // Interner Konstruktor
   NotificationService._internal();
 
+  // Instanz des FlutterLocalNotificationsPlugin
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  // Instanz des StorageService
   final StorageService _storageService = StorageService();
 
+  /// Initialisiert die Benachrichtigungsdienste.
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -32,10 +37,12 @@ class NotificationService {
           iOS: initializationSettingsIOS,
         );
 
+    // Initialisiere Zeitzonen
     tz.initializeTimeZones();
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
+  /// Fordert die notwendigen Berechtigungen für Benachrichtigungen an.
   Future<void> requestPermissions() async {}
 
   /// Zeigt eine sofortige Test-Benachrichtigung an.
@@ -60,6 +67,7 @@ class NotificationService {
     );
   }
 
+  /// Plant eine Benachrichtigung zu einem bestimmten Zeitpunkt.
   Future<void> scheduleNotification(
     int id,
     String title,
@@ -90,6 +98,7 @@ class NotificationService {
     }
   }
 
+  /// Plant Erinnerungsbenachrichtigungen basierend auf den Einstellungen.
   Future<void> scheduleReminders(
     int baseId,
     String title,
@@ -102,6 +111,7 @@ class NotificationService {
     int reminder1Minutes;
     int reminder2Minutes;
 
+    // Im Testmodus werden die benutzerdefinierten Werte aus den Einstellungen verwendet.
     if (isTestMode) {
       final reminderSettings = await _storageService.getReminderMinutes();
       reminder1Minutes = reminderSettings['reminder1']!;
@@ -143,6 +153,7 @@ class NotificationService {
     }
   }
 
+  /// Löscht alle geplanten Erinnerungsbenachrichtigungen für einen Termin.
   Future<void> cancelReminders(int baseId) async {
     await flutterLocalNotificationsPlugin.cancel(baseId);
     await flutterLocalNotificationsPlugin.cancel(baseId + 1);

@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/event.dart' as my_event;
 
-/// Service-Klasse für Kalender-bezogene Funktionen wie Export, Import und Backup von Terminen.
+/// Service-Klasse für Kalenderbezogene Funktionen wie Export, Import und Backup von Terminen.
 class CalendarService {
   final Uuid _uuid = const Uuid();
 
@@ -41,7 +41,9 @@ class CalendarService {
       return text.replaceAll('\n', '\\n');
     }
 
+    // Alle Events durchgehen und in das ICS-Format umwandeln.
     for (var event in events) {
+      // Feiertage werden nicht exportiert.
       if (event.isHoliday) continue;
 
       final uid = event.id;
@@ -55,10 +57,13 @@ class CalendarService {
       icsContent.writeln('UID:$uid@meine.app');
       icsContent.writeln('DTSTAMP:$dtstamp');
       icsContent.writeln('SUMMARY:$title');
+
+      // Beschreibung nur hinzufügen, wenn sie nicht leer ist.
       if (description.isNotEmpty) {
         icsContent.writeln('DESCRIPTION:$description');
       }
 
+      // Unterschiedliche Behandlung für Geburtstage (ganztägig, jährlich) und normale Events.
       if (event.isBirthday) {
         final date = event.date;
         final nextDay = DateTime(
@@ -85,6 +90,7 @@ class CalendarService {
       icsContent.writeln('END:VEVENT');
     }
 
+    // Kalender abschließen.
     icsContent.writeln('END:VCALENDAR');
 
     final directory = await getTemporaryDirectory();
@@ -98,6 +104,7 @@ class CalendarService {
     );
   }
 
+  /// Importiert Ereignisse aus einer ausgewählten .ics-Datei.
   Future<List<my_event.Event>> importEvents() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
@@ -121,6 +128,7 @@ class CalendarService {
         return [];
       }
 
+      // Alle Events durchgehen und in interne Event-Objekte umwandeln.
       for (var data in iCalendar.data) {
         try {
           // Startdatum/-zeit) ist zwingend erforderlich.
@@ -136,6 +144,7 @@ class CalendarService {
             continue;
           }
 
+          // Prüfen, ob es sich um ein jährliches Ereignis (Geburtstag) handelt.
           final bool isYearly =
               data['rrule']?.toString().contains('FREQ=YEARLY') ?? false;
 
@@ -165,6 +174,7 @@ class CalendarService {
       return;
     }
 
+    // Alle Events in eine Liste von Maps umwandeln.
     final List<Map<String, dynamic>> jsonList = events
         .map((event) => event.toJson())
         .toList();

@@ -19,6 +19,7 @@ class HolidayService {
     try {
       final response = await http.get(url);
 
+      // Überprüfen, ob die Anfrage erfolgreich war
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<Event> holidays = [];
