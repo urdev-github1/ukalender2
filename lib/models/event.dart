@@ -49,7 +49,6 @@ class Event {
 
   Map<String, dynamic> toJson() => _$EventToJson(this);
 
-  // copyWith-Methode bleibt unverändert...
   Event copyWith({
     String? id,
     String? title,

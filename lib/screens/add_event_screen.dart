@@ -234,26 +234,16 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     'Der Termin wird jedes Jahr wiederholt.',
                   ),
                   value: _isBirthday,
-                  // =======================================================================
-                  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-                  // =======================================================================
                   onChanged: (bool value) {
                     setState(() {
                       _isBirthday = value;
-                      // NEU: Logik zur automatischen Farbzuweisung
                       if (value) {
-                        // Wenn der Schalter aktiviert wird, setze die Farbe auf Violett.
                         _selectedColor = AppColors.violet;
                       } else {
-                        // Wenn der Schalter deaktiviert wird, setze die Farbe
-                        // auf den Standardwert für normale Termine zurück.
                         _selectedColor = AppColors.lightBlue;
                       }
                     });
                   },
-                  // =======================================================================
-                  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-                  // =======================================================================
                 ),
                 const SizedBox(height: 16),
 
@@ -316,8 +306,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                               ? null
                               : _descController.text,
                           date: eventDateTime,
-                          color:
-                              _selectedColor, // Die korrekte Farbe wird gespeichert
+                          color: _selectedColor,
                           isBirthday: _isBirthday,
                         );
 

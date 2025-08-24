@@ -1,10 +1,7 @@
 // lib/services/calendar_service.dart
 
-// Import von Dart-Standardbibliotheken
 import 'dart:io';
 import 'dart:convert'; // Für JSON-Kodierung und -Dekodierung
-
-// Import von Drittanbieter-Paketen
 import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,16 +9,13 @@ import 'package:share_plus/share_plus.dart';
 import 'package:icalendar_parser/icalendar_parser.dart' as ical_parser;
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-
-// Import des eigenen Event-Modells
 import '../models/event.dart' as my_event;
 
-/// CalendarService ist eine Klasse, die alle Operationen im Zusammenhang mit
-/// dem Gerätekalender und dem Import/Export von Terminen kapselt.
+/// Service-Klasse für Kalender-bezogene Funktionen wie Export, Import und Backup von Terminen.
 class CalendarService {
   final Uuid _uuid = const Uuid();
 
-  /// Fügt ein einzelnes Event zum nativen Kalender des Geräts hinzu.
+  /// Fügt ein Ereignis zum Huawei-Gerätekalender hinzu.
   Future<void> addToDeviceCalendar(my_event.Event event) async {
     final a2c.Event a2cEvent = a2c.Event(
       title: event.title,
@@ -33,11 +27,8 @@ class CalendarService {
     await a2c.Add2Calendar.addEvent2Cal(a2cEvent);
   }
 
-  // =======================================================================
-  // ==== METHODEN FÜR .ICS (KOMPATIBILITÄT MIT ANDEREN KALENDERN) =========
-  // =======================================================================
-
-  /// Exportiert eine Liste von Events durch manuelles Erstellen des iCalendar-Strings.
+  /// Exportiert eine Liste von Ereignissen in eine .ics-Datei und teilt diese Datei.
+  // (Die Bedienung ist zurzeit in der App deaktiviert!)
   Future<void> exportEvents(List<my_event.Event> events) async {
     final StringBuffer icsContent = StringBuffer();
 
@@ -107,19 +98,13 @@ class CalendarService {
     );
   }
 
-  // =======================================================================
-  // ==================== HIER IST DIE ÜBERARBEITETE FUNKTION ================
-  // =======================================================================
-  /// Temporäre Debug-Version von importEvents, um das Problem einzugrenzen.
   Future<List<my_event.Event>> importEvents() async {
-    //print("--- Starte den ICS-Import-Prozess ---");
-
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
     );
 
+    // Wurde der Dateiauswahldialog abgebrochen?
     if (result == null || result.files.single.path == null) {
-      //print("Import abgebrochen: Keine Datei ausgewählt.");
       return [];
     }
 
@@ -127,53 +112,27 @@ class CalendarService {
     final file = File(path);
     final List<my_event.Event> importedEvents = [];
 
-    //print("Datei ausgewählt: $path");
-
     try {
       final icsString = await file.readAsString();
-      // print(
-      //   "Datei erfolgreich gelesen. Inhalt hat ${icsString.length} Zeichen.",
-      // );
-
       final iCalendar = ical_parser.ICalendar.fromString(icsString);
-      // print(
-      //   "ICS-Datei geparst. Anzahl der gefundenen Roh-Events: ${iCalendar.data.length}",
-      // );
 
+      // Prüfen, on keine Events in der Datei vorhanden sind.
       if (iCalendar.data.isEmpty) {
-        //print("WARNUNG: Keine Event-Einträge (VEVENT) in der Datei gefunden.");
         return [];
       }
 
-      // Wir geben nur das erste Event aus, um die Konsole nicht zu überfluten
-      bool firstEventPrinted = false;
-
       for (var data in iCalendar.data) {
-        if (!firstEventPrinted) {
-          // print("\n--- Inhalt des ersten Roh-Events ---");
-          // print(data);
-          // print("----------------------------------\n");
-          firstEventPrinted = true;
-        }
-
         try {
+          // Startdatum/-zeit) ist zwingend erforderlich.
           if (!data.containsKey('dtstart')) {
-            //print("Event wird übersprungen: Kein 'dtstart'-Feld gefunden.");
             continue;
           }
-
-          // **Hier ist der kritische Punkt:** Was ist der Typ von 'dtstart'?
-          // print(
-          //   "Verarbeite Event... 'dtstart' ist vom Typ: ${data['dtstart'].runtimeType}",
-          // );
 
           final ical_parser.IcsDateTime? icsDate = data['dtstart'];
           final DateTime? startDate = icsDate?.toDateTime();
 
+          // Ungültiges Startdatum/-zeit überspringen.
           if (startDate == null) {
-            // print(
-            //   "FEHLER: Datum konnte nicht verarbeitet werden. 'startDate' ist null. Event wird übersprungen.",
-            // );
             continue;
           }
 
@@ -190,31 +149,19 @@ class CalendarService {
             ),
           );
         } catch (e) {
-          // print(
-          //   "FEHLER bei der Verarbeitung eines einzelnen Events: $e. Wird übersprungen.",
-          // );
           continue;
         }
       }
 
-      // print(
-      //   "--- Import abgeschlossen. ${importedEvents.length} Events wurden erfolgreich verarbeitet. ---",
-      // );
       return importedEvents;
     } catch (e) {
-      //print("FATALER FEHLER beim Lesen oder Parsen der gesamten Datei: $e");
       return [];
     }
   }
 
-  // =======================================================================
-  // === METHODEN FÜR APP-INTERNES BACKUP/RESTORE (VERLUSTFREI) ======
-  // =======================================================================
-
   /// Erstellt ein vollständiges, app-internes Backup aller User-Termine in einer JSON-Datei.
   Future<void> createInternalBackup(List<my_event.Event> events) async {
     if (events.isEmpty) {
-      //print("Keine Termine zum Sichern vorhanden.");
       return;
     }
 
@@ -259,7 +206,6 @@ class CalendarService {
 
         return restoredEvents;
       } catch (e) {
-        //print('Fehler beim Wiederherstellen des Backups: $e');
         return [];
       }
     }

@@ -27,7 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _reminder1Controller;
   late TextEditingController _reminder2Controller;
 
-  // Zustand für den Umschalter
   bool _isTestNotificationMode = false;
 
   final Map<String, String> _germanStates = {
@@ -69,21 +68,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadAllSettings() async {
     final savedState = await _storageService.getSelectedState();
     final reminderMinutes = await _storageService.getReminderMinutes();
-    // Lade den Zustand des Umschalters aus dem Speicher
     final isTestMode = await _storageService.getIsTestNotification();
 
-    // Sicherstellen, dass der State noch gemounted ist, bevor setState aufgerufen wird
     if (mounted) {
       setState(() {
         _selectedStateCode = savedState;
         _isTestNotificationMode = isTestMode;
 
-        // Setze die Controller-Werte basierend auf dem Modus
         if (_isTestNotificationMode) {
           _reminder1Controller.text = reminderMinutes['reminder1']!.toString();
           _reminder2Controller.text = reminderMinutes['reminder2']!.toString();
         } else {
-          // Im Standardmodus die festen Werte anzeigen
           _reminder1Controller.text = '1440';
           _reminder2Controller.text = '60';
         }
@@ -110,16 +105,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _saveReminderSettings() {
-    // Schließt die Tastatur, bevor gespeichert wird
     FocusScope.of(context).unfocus();
 
-    // Speichern ist nur im Testmodus möglich und sinnvoll
     if (_isTestNotificationMode) {
       final reminder1 = int.tryParse(_reminder1Controller.text) ?? 0;
       final reminder2 = int.tryParse(_reminder2Controller.text) ?? 0;
       _storageService.saveReminderMinutes(reminder1, reminder2);
 
-      // Feedback für den Benutzer
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Test-Erinnerungszeiten gespeichert.'),
@@ -207,9 +199,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // =======================================================================
-                        // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-                        // =======================================================================
                         Text(
                           !_isTestNotificationMode
                               ? 'Standardmodus: Erinnerungen erfolgen 24h und 1h vor einem Termin.'
@@ -220,7 +209,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             Expanded(
                               child: TextField(
-                                // Feld ist nur im Testmodus bedienbar
                                 enabled: _isTestNotificationMode,
                                 controller: _reminder1Controller,
                                 decoration: const InputDecoration(
@@ -236,7 +224,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: TextField(
-                                // Feld ist nur im Testmodus bedienbar
                                 enabled: _isTestNotificationMode,
                                 controller: _reminder2Controller,
                                 decoration: const InputDecoration(
@@ -262,9 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onChanged: (value) {
                                 setState(() {
                                   _isTestNotificationMode = value;
-                                  // Beim Wechsel des Modus, die Texte aktualisieren
                                   if (value) {
-                                    // Wechsel zu Test: Lade gespeicherte Werte
                                     _storageService.getReminderMinutes().then((
                                       minutes,
                                     ) {
@@ -274,20 +259,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           minutes['reminder2']!.toString();
                                     });
                                   } else {
-                                    // Wechsel zu Standard: Setze feste Werte
                                     _reminder1Controller.text = '1440';
                                     _reminder2Controller.text = '60';
                                   }
                                 });
-                                // Speichere die neue Modus-Einstellung sofort
                                 _storageService.saveIsTestNotification(value);
                               },
                             ),
                             const Text('Test'),
-                            const Spacer(), // Flexibler Abstand
-                            // Der Speichern-Button
+                            const Spacer(),
                             ElevatedButton(
-                              // Button ist nur im Testmodus aktiv
                               onPressed: _isTestNotificationMode
                                   ? _saveReminderSettings
                                   : null,
@@ -295,9 +276,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        // =======================================================================
-                        // ===================== HIER ENDET DIE ÄNDERUNG =========================
-                        // =======================================================================
                       ],
                     ),
                   ),

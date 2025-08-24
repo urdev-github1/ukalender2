@@ -55,9 +55,6 @@ class DatabaseHelper {
     }
   }
 
-  // =======================================================================
-  // ==================== HIER IST DIE LOGIK-ÄNDERUNG ======================
-  // =======================================================================
   // Diese Methode fügt einen neuen Termin hinzu.
   Future<void> insertEvent(Event event) async {
     final db = await instance.database;
@@ -68,8 +65,6 @@ class DatabaseHelper {
     );
   }
 
-  // Diese Methode aktualisiert einen bestehenden Termin oder fügt ihn hinzu,
-  // falls er nicht existiert. Perfekt für den Import.
   Future<void> updateEvent(Event event) async {
     final db = await instance.database;
     await db.update(
@@ -79,12 +74,10 @@ class DatabaseHelper {
       whereArgs: [event.id],
     );
   }
-  // =======================================================================
 
   Future<List<Event>> getAllEvents() async {
     final db = await instance.database;
     final result = await db.query('events');
-    // Diese Zeile wird fehlschlagen, wenn event.g.dart veraltet ist.
     return result.map((json) => Event.fromJson(json)).toList();
   }
 
@@ -93,7 +86,6 @@ class DatabaseHelper {
     await db.delete('events', where: 'id = ?', whereArgs: [id]);
   }
 
-  /// NEU: Löscht alle Einträge aus der 'events'-Tabelle.
   Future<void> deleteAllEvents() async {
     final db = await instance.database;
     await db.delete('events');

@@ -25,5 +25,4 @@ class BuildInfo {
 
   // Inhalt in die Zieldatei schreiben
   file.writeAsStringSync(content);
-  //print('Build-Zeitstempel aktualisiert: $formattedDate');
 }

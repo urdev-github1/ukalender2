@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
-import 'add_event_screen.dart';
+import '../screens/add_event_screen.dart';
 import '../services/storage_service.dart';
 import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
@@ -153,10 +153,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // --- Logic for Import/Export & Backup/Restore ---
-
-  /// **REVISED**: This function now completes all async work first,
-  /// then checks if the widget is still mounted before showing a SnackBar.
   void _importEvents() async {
     final List<Event> importedEvents = await _calendarService.importEvents();
 
@@ -168,7 +164,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       await _loadInitialData();
     }
 
-    // After all async operations, check if the widget is still in the tree.
     if (!mounted) return;
 
     if (importedEvents.isNotEmpty) {
@@ -212,14 +207,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _calendarService.createInternalBackup(_userEvents);
   }
 
-  /// **REVISED**: This function now includes 'mounted' checks after each
-  /// async operation (await) before using the BuildContext.
   void _performRestore() async {
-    // 1. Read events from the backup file.
     final List<Event> restoredEvents = await _calendarService
         .restoreFromInternalBackup();
 
-    // 2. After the await, check if the widget is still mounted.
     if (!mounted) return;
 
     if (restoredEvents.isEmpty) {
@@ -231,8 +222,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    // 3. Show the dialog to let the user choose the strategy.
-    // The context is safe to use here because of the 'mounted' check above.
     final choice = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -259,11 +248,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
 
-    // 4. After the dialog is closed, the widget might have been unmounted.
-    // Check again before proceeding.
     if (choice == null || !mounted) return;
 
-    // 5. Handle the user's decision and perform storage operations.
     if (choice == 'replace') {
       await _storageService.clearAllEvents();
     }
@@ -272,10 +258,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       await _storageService.addEvent(event);
     }
 
-    // 6. Reload the UI and show a success message.
     await _loadInitialData();
 
-    // 7. Check if mounted one last time before the final SnackBar.
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -285,7 +269,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    // This method is unchanged and correct
     final DateTime now = DateTime.now();
     final bool isToday =
         details.date.year == now.year &&
@@ -391,7 +374,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         (e) => e.id == event.id,
                         orElse: () => event,
                       );
-                      // Using context before the 'await' is safe.
                       final result = await Navigator.push<dynamic>(
                         context,
                         MaterialPageRoute(
@@ -401,7 +383,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
                       );
-                      // No context is used after the 'await', so no 'mounted' check is needed here.
                       if (result is Event) {
                         _updateEvent(originalEvent, result);
                       } else if (result is bool && result == true) {
@@ -442,12 +423,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _openSettings() async {
-    // Using context before the 'await' is safe.
     final shouldReload = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
-    // No context is used after the 'await'.
     if (shouldReload == true) {
       _loadHolidaysForYear(_currentYear);
     }
@@ -591,7 +570,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color.fromARGB(255, 131, 185, 201),
         onPressed: () async {
-          // Using context before the 'await' is safe.
           final result = await Navigator.push<Event>(
             context,
             MaterialPageRoute(
@@ -599,7 +577,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   AddEventScreen(selectedDate: _selectedDay ?? DateTime.now()),
             ),
           );
-          // No context is used after the 'await'.
           if (result != null) {
             _addEvent(result);
           }

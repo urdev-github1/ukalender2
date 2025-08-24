@@ -36,13 +36,10 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<void> requestPermissions() async {
-    // ... (keine Änderungen hier)
-  }
+  Future<void> requestPermissions() async {}
 
   /// Zeigt eine sofortige Test-Benachrichtigung an.
   Future<void> showTestNotification() async {
-    //print('--- [NotificationService] Showing IMMEDIATE Test Notification ---');
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'main_channel',
@@ -69,9 +66,6 @@ class NotificationService {
     String body,
     DateTime scheduledTime,
   ) async {
-    // print('--- [NotificationService] Scheduling Notification ---');
-    // print('ID: $id, Title: $title, Scheduled: $scheduledTime');
-
     try {
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id,
@@ -86,41 +80,21 @@ class NotificationService {
             importance: Importance.max,
             priority: Priority.high,
           ),
-          //iOS: DarwinInitializationDetails(),
         ),
-        // =======================================================================
-        // ==================== HIER IST DIE ENTSCHEIDENDE ÄNDERUNG ================
-        // =======================================================================
-        // Wir deklarieren den Alarm als "alarmClock". Dies signalisiert dem OS
-        // eine extrem hohe Priorität, die selbst von Huawei respektiert wird.
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        // =======================================================================
-        // =======================================================================
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      // print(
-      //   '--- [NotificationService] SUCCESSFULLY scheduled notification with ID $id.',
-      // );
     } catch (e) {
-      // print(
-      //   '--- [NotificationService] FAILED to schedule notification with ID $id. Error: $e',
-      // );
+      //print('Fehler beim Planen der Benachrichtigung: $e');
     }
   }
 
-  // =======================================================================
-  // ==================== HIER BEGINNT DIE ÄNDERUNG ========================
-  // =======================================================================
   Future<void> scheduleReminders(
     int baseId,
     String title,
     DateTime eventTime,
   ) async {
-    // print(
-    //   '--- [NotificationService] scheduleReminders called for "$title" at $eventTime',
-    // );
-
     // Prüfen, welcher Benachrichtigungsmodus (Standard oder Test) aktiv ist.
     final isTestMode = await _storageService.getIsTestNotification();
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
@@ -128,17 +102,11 @@ class NotificationService {
     int reminder1Minutes;
     int reminder2Minutes;
 
-    // --- LOGIK FÜR DEN TESTMODUS ---
     if (isTestMode) {
-      //print('--- [NotificationService] Running in TEST notification mode.');
-      // Im Testmodus werden die vom Benutzer gespeicherten Werte verwendet.
       final reminderSettings = await _storageService.getReminderMinutes();
       reminder1Minutes = reminderSettings['reminder1']!;
       reminder2Minutes = reminderSettings['reminder2']!;
-    }
-    // --- LOGIK FÜR DEN STANDARDMODUS ---
-    else {
-      //print('--- [NotificationService] Running in STANDARD notification mode.');
+    } else {
       // Im Standardmodus werden die festen Werte (24h / 1h) verwendet.
       reminder1Minutes = 1440; // 24 * 60
       reminder2Minutes = 60;
@@ -156,11 +124,7 @@ class NotificationService {
           'Ihr Termin beginnt in $reminder1Minutes Minuten.',
           reminder1Time,
         );
-      } else {
-        // print(
-        //   '--- [NotificationService] Reminder 1 was not scheduled (in past).',
-        // );
-      }
+      } else {}
     }
 
     // Planen der 2. Benachrichtigung
@@ -175,20 +139,12 @@ class NotificationService {
           'Ihr Termin beginnt in $reminder2Minutes Minuten.',
           reminder2Time,
         );
-      } else {
-        // print(
-        //   '--- [NotificationService] Reminder 2 was not scheduled (in past).',
-        // );
-      }
+      } else {}
     }
   }
-  // =======================================================================
-  // ===================== HIER ENDET DIE ÄNDERUNG =========================
-  // =======================================================================
 
   Future<void> cancelReminders(int baseId) async {
     await flutterLocalNotificationsPlugin.cancel(baseId);
     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
-    //print('--- [NotificationService] Canceled reminders for base ID $baseId.');
   }
 }
