@@ -34,6 +34,7 @@ class MyApp extends StatelessWidget {
       // Standardhelligkeit und -farben festlegen.
       theme: ThemeData(
         useMaterial3: true,
+        // Hauptakzentfarbe der App definieren.
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF006C4E),
           brightness: Brightness.light,

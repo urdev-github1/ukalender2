@@ -136,7 +136,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
+          color: Theme.of(
+            context,
+          ).colorScheme.primary, // dunkles grün (#006C4E)
           fontWeight: FontWeight.bold,
           fontSize: 19,
         ),

@@ -12,6 +12,7 @@ import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/calendar_color_logic.dart';
+import '../screens/color_scheme_preview_screen.dart';
 
 /// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
 class EventDataSource extends CalendarDataSource {
@@ -250,7 +251,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: const Text('Zusammenführen'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.destructiveActionColor,
+            ),
             onPressed: () => Navigator.of(context).pop('replace'),
             child: const Text('Alles Ersetzen'),
           ),
@@ -312,28 +315,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _selectedDay!.month == details.date.month &&
         _selectedDay!.day == details.date.day;
 
-    Color dayNumberColor;
-
     // Bestimmt die Textfarbe für die Tagesnummer basierend auf verschiedenen Zuständen.
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color dayNumberColor;
 
     // Logik zur Bestimmung der Textfarbe
     if (isSelected) {
-      dayNumberColor = Colors.white;
+      dayNumberColor = AppColors.dayNumberColor;
     } else if (!isCurrentMonth) {
-      dayNumberColor = isDark ? Colors.white24 : Colors.black26;
+      dayNumberColor = AppColors.dayNumberInactive;
     } else if (isWeekend && !isHoliday) {
-      dayNumberColor = AppColors.weekendDay; // <-- ÄNDERUNG: Zentrale Farbe
+      dayNumberColor = AppColors.weekendDay;
     } else {
-      dayNumberColor = isDark ? Colors.white70 : Colors.black87;
+      dayNumberColor = AppColors.textPrimary;
     }
     // Baut die Zelle mit entsprechender Dekoration und Terminen.
     return Container(
       decoration: BoxDecoration(
         color: isHoliday ? AppColors.holidayBackground : Colors.transparent,
         border: Border(
-          top: BorderSide(color: Colors.grey[300]!, width: 0.5),
-          left: BorderSide(color: Colors.grey[300]!, width: 0.5),
+          top: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
+          left: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
         ),
       ),
       padding: const EdgeInsets.all(2.0),
@@ -379,8 +380,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         maxLines: 1,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppColors
-                              .holidayText, // <-- ÄNDERUNG: Zentrale Farbe
+                          color: AppColors.holidayText,
                           fontSize: 10.0,
                           fontWeight: FontWeight.w600,
                         ),
@@ -431,7 +431,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         maxLines: 1,
                         textAlign: TextAlign.left,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.dayNumberColor,
                           fontSize: 12.2,
                           fontWeight: FontWeight.bold,
                         ),
@@ -478,7 +478,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+            color: Theme.of(
+              context,
+            ).colorScheme.primary, // dunkles grün (#006c4e)
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -493,6 +495,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
         // Menü- und Einstellungsaktionen in der App-Leiste.
         actions: [
+          // ================================================================
+          // HIER DEN NEUEN BUTTON EINFÜGEN
+          // ================================================================
+          IconButton(
+            icon: const Icon(Icons.color_lens_outlined),
+            tooltip: 'Farbschema testen',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ColorSchemePreviewScreen(),
+                ),
+              );
+            },
+          ),
+
+          // ================================================================
           PopupMenuButton<String>(
             icon: const Icon(Icons.import_export),
             tooltip: 'Daten importieren/exportieren',
@@ -579,7 +598,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             textStyle: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
+              color: Theme.of(
+                context,
+              ).colorScheme.primary, // dunkles grün (#006c4e)
             ),
           ),
           monthCellBuilder: _monthCellBuilder,

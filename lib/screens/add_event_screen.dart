@@ -41,14 +41,14 @@ class _AddEventScreenState extends State<AddEventScreen> {
     super.initState();
     _selectedDate = widget.selectedDate;
 
-    // Die Felder mit den Daten füllen, wenn ein Termin bearbeitet wurde.
+    // Wenn ein Termin bearbeitet wurde.
     if (widget.eventToEdit != null) {
       final event = widget.eventToEdit!;
       _titleController.text = event.title;
       _descController.text = event.description ?? '';
       _selectedDate = event.date;
       _selectedTime = TimeOfDay.fromDateTime(event.date);
-      _selectedColor = event.color;
+      _selectedColor = event.color; // Hintergrundfarbe des Termins (lightBlue)
       _isBirthday = event.isBirthday;
     } else {
       _selectedTime = TimeOfDay.now();
@@ -111,6 +111,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   _selectedColor = color;
                 });
               },
+              // Farbauswahl-Kreis
               child: Container(
                 width: 40,
                 height: 40,
@@ -118,11 +119,21 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   color: color,
                   shape: BoxShape.circle,
                   border: isSelected
-                      ? Border.all(color: Colors.black, width: 3.0)
-                      : Border.all(color: Colors.grey.shade400, width: 1.5),
+                      ? Border.all(
+                          color: AppColors.selectColorChoise,
+                          width: 3.0,
+                        )
+                      : Border.all(
+                          color: AppColors.deselectColorChoise,
+                          width: 1.5,
+                        ),
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check, color: Colors.white, size: 22)
+                    ? const Icon(
+                        Icons.check,
+                        color: AppColors.checkIcon,
+                        size: 22,
+                      )
                     : null,
               ),
             );
@@ -140,9 +151,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
     String? hintText,
     String? Function(String?)? validator,
   }) {
+    // Styling für Titel + Beschreibung
     final labelStyle = Theme.of(
       context,
-    ).textTheme.titleMedium?.copyWith(color: Colors.grey.shade700);
+    ).textTheme.titleMedium?.copyWith(color: AppColors.lableTextfield);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,13 +199,15 @@ class _AddEventScreenState extends State<AddEventScreen> {
                         'Möchten Sie diesen Termin wirklich endgültig löschen?',
                       ),
                       actions: <Widget>[
+                        // Abbrechen-Button
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
                           child: const Text('Abbrechen'),
                         ),
+                        // Löschen-Button
                         TextButton(
                           style: TextButton.styleFrom(
-                            foregroundColor: Colors.red,
+                            foregroundColor: AppColors.deleteButton,
                           ),
                           onPressed: () => Navigator.of(context).pop(true),
                           child: const Text('Löschen'),
