@@ -10,6 +10,8 @@ import '../services/storage_service.dart';
 import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
+import '../utils/app_colors.dart';
+import '../utils/calendar_color_logic.dart';
 
 /// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
 class EventDataSource extends CalendarDataSource {
@@ -35,25 +37,8 @@ class EventDataSource extends CalendarDataSource {
   // Gibt die Farbe des Termins an der angegebenen Indexposition zurück.
   Color getColor(int index) {
     final Event event = appointments![index] as Event;
-
-    // Feiertage behalten ihre definierte Farbe.
-    if (event.isHoliday) {
-      return event.color;
-    }
-
-    final DateTime now = DateTime.now();
-    final DateTime today = DateTime(now.year, now.month, now.day);
-    final DateTime eventDate = DateTime(
-      event.date.year,
-      event.date.month,
-      event.date.day,
-    );
-
-    // Vergangene Termine werden in Grün dargestellt.
-    if (eventDate.isBefore(today)) {
-      return const Color(0xFF00854D); // AppColors.green
-    }
-    return event.color;
+    // Die ausgelagerte Logik zur Farbbestimmung wird hier aufgerufen.
+    return CalendarColorLogic.getEventColor(event);
   }
 
   @override
@@ -124,6 +109,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             birthday.date.month,
             birthday.date.day,
           );
+          // Nur hinzufügen, wenn der Geburtstag im aktuellen Jahr oder in der Zukunft liegt
           displayEvents.add(birthday.copyWith(date: birthdayInYear));
         }
       }
@@ -188,6 +174,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (!mounted) return;
 
+    // Bestätigung anzeigen, wie viele Termine importiert/aktualisiert wurden.
     if (importedEvents.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -330,20 +317,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     // Bestimmt die Textfarbe für die Tagesnummer basierend auf verschiedenen Zuständen.
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Priorität der Farben: Ausgewählt > Nicht aktueller Monat > Wochenende (kein Feiertag) > Standard
+    // Logik zur Bestimmung der Textfarbe
     if (isSelected) {
       dayNumberColor = Colors.white;
     } else if (!isCurrentMonth) {
       dayNumberColor = isDark ? Colors.white24 : Colors.black26;
     } else if (isWeekend && !isHoliday) {
-      dayNumberColor = Colors.red.withAlpha(204);
+      dayNumberColor = AppColors.weekendDay; // <-- ÄNDERUNG: Zentrale Farbe
     } else {
       dayNumberColor = isDark ? Colors.white70 : Colors.black87;
     }
     // Baut die Zelle mit entsprechender Dekoration und Terminen.
     return Container(
       decoration: BoxDecoration(
-        color: isHoliday ? Colors.green.withAlpha(38) : Colors.transparent,
+        color: isHoliday ? AppColors.holidayBackground : Colors.transparent,
         border: Border(
           top: BorderSide(color: Colors.grey[300]!, width: 0.5),
           left: BorderSide(color: Colors.grey[300]!, width: 0.5),
@@ -392,26 +379,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         maxLines: 1,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.green[800],
+                          color: AppColors
+                              .holidayText, // <-- ÄNDERUNG: Zentrale Farbe
                           fontSize: 10.0,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     );
                   }
-                  final Color eventColor;
-                  final DateTime now = DateTime.now();
-                  final DateTime today = DateTime(now.year, now.month, now.day);
-                  final DateTime eventDate = DateTime(
-                    event.date.year,
-                    event.date.month,
-                    event.date.day,
+
+                  // Bestimmt die Farbe des Termins basierend auf seiner Kategorie.
+                  final Color eventColor = CalendarColorLogic.getEventColor(
+                    event,
                   );
-                  if (eventDate.isBefore(today)) {
-                    eventColor = const Color(0xFF00854D);
-                  } else {
-                    eventColor = event.color;
-                  }
+
                   return GestureDetector(
                     onTap: () async {
                       final Event originalEvent = _userEvents.firstWhere(
@@ -487,6 +468,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       colorScheme.primaryContainer,
       0.3,
     )!;
+
+    // Farbverlaufshintergrund für den Kalenderbildschirm.
     final Color endColor = colorScheme.surfaceContainerLow;
     return Scaffold(
       appBar: AppBar(
@@ -616,9 +599,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           },
         ),
       ),
+
       // Schaltfläche zum Hinzufügen neuer Termine.
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromARGB(255, 131, 185, 201),
+        backgroundColor: AppColors.floatingActionButton,
         onPressed: () async {
           final result = await Navigator.push<Event>(
             context,

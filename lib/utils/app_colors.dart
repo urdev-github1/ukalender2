@@ -12,6 +12,10 @@ class AppColors {
   static const Color blue = Color(0xFF404DAD); // HEX: #404dad
   static const Color lightBlue = Color(0xFF00A1EA); // HEX: #00a1ea
 
+  // Abfrage im AddEventScreen
+  static const Color birthdayColor = violet;
+  static const Color defaultEventColor = lightBlue;
+
   /// Liste von Farben, die für Ereignisse verwendet werden können.
   static const List<Color> eventColors = [
     orange,
@@ -22,4 +26,17 @@ class AppColors {
     blue,
     lightBlue,
   ];
+
+  // Kalender-spezifische Farben
+  static const Color pastEvent = Color(0xFF00854D);
+  static const Color holidayBackground = Color(
+    0x2600854D,
+  ); // green.withAlpha(38)
+  static const Color holidayText = Color(
+    0xFF004D2B,
+  ); // Etwas dunkleres Grün für Text
+  static Color weekendDay = Colors.red.withAlpha(204);
+
+  // UI-Element Farben
+  static const Color floatingActionButton = Color.fromARGB(255, 131, 185, 201);
 }

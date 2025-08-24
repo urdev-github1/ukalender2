@@ -248,9 +248,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     setState(() {
                       _isBirthday = value;
                       if (value) {
-                        _selectedColor = AppColors.violet;
+                        _selectedColor = AppColors.birthdayColor;
                       } else {
-                        _selectedColor = AppColors.lightBlue;
+                        _selectedColor = AppColors.defaultEventColor;
                       }
                     });
                   },
