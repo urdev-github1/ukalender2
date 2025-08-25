@@ -53,9 +53,6 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      // // Dunkelmodus-Thema definieren.
-      // themeMode: ThemeMode.light,
-
       // Stellt sprachspezifische Texte und Layouts für die Flutter-Widgets bereit.
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

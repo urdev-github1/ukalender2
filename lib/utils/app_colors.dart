@@ -23,7 +23,6 @@ class AppColors {
   static const Color checkIcon = Colors.white;
   static const Color dayNumberColor = Colors.white;
   static const Color dayNumberInactive = Colors.black26;
-  static const Color dayNumberInactiveDark = Colors.white24;
   static final Color calendarGridBorder = Colors.grey[300]!;
 
   static const Color destructiveActionColor = Colors.red;

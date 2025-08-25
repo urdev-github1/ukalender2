@@ -462,7 +462,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Baut die Benutzeroberfläche des Kalenders.
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final Color startColor = Color.lerp(
       colorScheme.surface,
       colorScheme.primaryContainer,
@@ -487,10 +486,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: isDarkMode
-              ? Brightness.light
-              : Brightness.dark,
-          statusBarBrightness: isDarkMode ? Brightness.dark : Brightness.light,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
         ),
 
         // Menü- und Einstellungsaktionen in der App-Leiste.
