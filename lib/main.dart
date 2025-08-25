@@ -31,24 +31,21 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Terminkalender',
 
-      // Standardhelligkeit und -farben festlegen.
+      // Standardfarben und Helligkeit festlegen.
       theme: ThemeData(
         useMaterial3: true,
         // Hauptakzentfarbe der App definieren.
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF006C4E),
-          brightness: Brightness.light,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF006C4E)),
 
-        // Kartenstil anpassen.
+        // Kartenstil anpassen (settings_screen.dart).
         cardTheme: CardThemeData(
-          elevation: 1,
+          elevation: 1, // leichte Schattierung
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           color: ColorScheme.fromSeed(
             seedColor: const Color(0xFF006C4E),
-            brightness: Brightness.light,
+            // Helle Farbe für Kartenhintergrund (abgeleitet von der Akzentfarbe).
           ).surfaceContainerHigh,
         ),
       ),

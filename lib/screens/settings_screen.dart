@@ -176,6 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: ListView(
               children: [
                 _buildSectionTitle(context, 'Über die App'),
+                // 1. Karte mit App-Informationen.
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
@@ -206,6 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 // Abschnitt für Benachrichtigungseinstellungen
                 _buildSectionTitle(context, 'Benachrichtigungen'),
+                // 2. Karte mit Benachrichtigungseinstellungen.
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Padding(
@@ -298,6 +300,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 // Abschnitt für die Auswahl des Bundeslandes
                 _buildSectionTitle(context, 'Feiertage'),
+                // 3. Karte mit Auswahl der Bundesländer bezüglich der Feiertage.
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Padding(
