@@ -12,7 +12,7 @@ import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/calendar_color_logic.dart';
-import '../screens/color_scheme_preview_screen.dart';
+//import '../screens/color_scheme_preview_screen.dart';
 
 /// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
 class EventDataSource extends CalendarDataSource {
@@ -447,7 +447,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  /// Öffnet den Einstellungsbildschirm und lädt die Feiertage neu, wenn Änderungen vorgenommen wurden.
+  /// Öffnet den Einstellungsbildschirm.
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
       context,
@@ -495,23 +495,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
         // Menü- und Einstellungsaktionen in der App-Leiste.
         actions: [
-          // ================================================================
-          // HIER DEN NEUEN BUTTON EINFÜGEN
-          // ================================================================
-          IconButton(
-            icon: const Icon(Icons.color_lens_outlined),
-            tooltip: 'Farbschema testen',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ColorSchemePreviewScreen(),
-                ),
-              );
-            },
-          ),
-
-          // ================================================================
+          // // ================================================================
+          // // Button für das Testen verschiedener Farbschemata.
+          // // ================================================================
+          // IconButton(
+          //   icon: const Icon(Icons.color_lens_outlined),
+          //   tooltip: 'Farbschema testen',
+          //   onPressed: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (_) => const ColorSchemePreviewScreen(),
+          //       ),
+          //     );
+          //   },
+          // ),
+          // // ================================================================
           PopupMenuButton<String>(
             icon: const Icon(Icons.import_export),
             tooltip: 'Daten importieren/exportieren',
