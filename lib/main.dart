@@ -45,15 +45,18 @@ class MyApp extends StatelessWidget {
           ),
           color: ColorScheme.fromSeed(
             seedColor: const Color(0xFF006C4E),
-            // Helle Farbe für Kartenhintergrund (abgeleitet von der Akzentfarbe).
+            // Helle Farbe für den Kartenhintergrund (abgeleitet von der Akzentfarbe).
           ).surfaceContainerHigh,
         ),
       ),
 
       // Stellt sprachspezifische Texte und Layouts für die Flutter-Widgets bereit.
       localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
+        // Texte, Labels und Fehlermeldungen erscheinen in der Sprache des Geräts.
+        GlobalMaterialLocalizations.delegate, // absolut notwendig!
+        // Automatische Richtungsunterstützung für Sprachen, die von rechts nach links gelesen werden.
         GlobalWidgetsLocalizations.delegate,
+        // Labels in Cupertino-Komponenten werden in der korrekten Sprache angezeigt.
         GlobalCupertinoLocalizations.delegate,
       ],
 

@@ -11,7 +11,6 @@
     <!-- Die VIBRATE-Berechtigung ist oft nützlich für Benachrichtigungen -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-
     <application
         android:label="uTermine"
         android:name="${applicationName}"
@@ -33,11 +32,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
 
-        <!-- ======================================================================= -->
-        <!-- ==================== HIER BEGINNEN DIE ERGÄNZUNGEN ==================== -->
-        <!-- ======================================================================= -->
+            <!-- Dieser Block registriert die App als fähig, ICS-Dateien zu öffnen.    -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Definiert, dass die App auf Daten vom Typ "text/calendar" reagiert. -->
+                <data android:mimeType="text/calendar" />
+                <!-- Erlaubt das Öffnen von Dateien aus dem Dateisystem und Anhängen. -->
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <!-- Erkennt Dateien auch anhand ihrer Endung, falls der MIME-Typ fehlt. -->
+                <data android:pathPattern=".*\\.ics" />
+                <data android:pathPattern=".*\\..*\\.ics" />
+                <data android:pathPattern=".*\\..*\\..*\\.ics" />
+            </intent-filter>
+
+        </activity>
 
         <!-- Receiver, die für das Auslösen und Verwalten von Benachrichtigungen benötigt werden. -->
         <!-- WICHTIG: Für Android 12 (API 31) und höher kann android:exported="true" für einige Receiver
@@ -63,11 +75,6 @@
             android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
             android:exported="false"
             android:stopWithTask="false"/>
-
-        <!-- ======================================================================= -->
-        <!-- ===================== HIER ENDEN DIE ERGÄNZUNGEN ====================== -->
-        <!-- ======================================================================= -->
-
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
