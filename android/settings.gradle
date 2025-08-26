@@ -1,0 +1,52 @@
+pluginManagement {
+    def flutterSdkPath = System.getenv("FLUTTER_SDK_PATH")
+    if (flutterSdkPath == null) {
+        def properties = new Properties()
+        def localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.withInputStream { properties.load(it) }
+            flutterSdkPath = properties.getProperty("flutter.sdk")
+        }
+    }
+
+    if (flutterSdkPath == null) {
+        // Fallback or error if flutter.sdk is still not found
+        // You might want to throw an exception or log a warning here
+        // For now, we'll try to include it anyway, hoping it's in a standard location
+        // or handled by the includeBuild directly, but it's less robust.
+        println("WARNING: flutter.sdk not found in local.properties or FLUTTER_SDK_PATH environment variable.")
+        // If you absolutely need a value, you could set a default or throw here:
+        // throw new GradleException("flutter.sdk not set in local.properties or FLUTTER_SDK_PATH environment variable.")
+    }
+
+    // This path is usually relative to the root of the Flutter SDK
+    // and correctly resolved by the includeBuild function when flutterSdkPath is set.
+    if (flutterSdkPath != null) {
+        includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    } else {
+        // Fallback for when flutterSdkPath couldn't be determined.
+        // This might need adjustment based on your Flutter installation.
+        // For example, if your project is directly in the Flutter SDK examples, it might work.
+        // This is less reliable.
+        println("Attempting to include Flutter tools gradle without explicit flutter.sdk path.")
+        includeBuild("../../../flutter/packages/flutter_tools/gradle")
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    id("com.android.application") version "8.7.3" apply false
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services") version "4.3.15" apply false
+    // END: FlutterFire Configuration
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+}
+
+rootProject.name = "your_project_name" // Ersetzen Sie dies durch den tatsächlichen Namen Ihres Projekts
+include ':app'
