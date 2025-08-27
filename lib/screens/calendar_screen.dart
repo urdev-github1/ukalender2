@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:ukalender2/calendar/event_data_source.dart';
-//import 'package:ukalender2/utils/calendar_color_logic.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
 import '../screens/add_event_screen.dart';
@@ -16,6 +15,8 @@ import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/calendar_month_cell.dart';
 import '../services/share_intent_service.dart';
+import '../features/event_import_export/event_importer.dart';
+//import '../features/event_import_export/event_exporter.dart';
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -42,6 +43,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Kapselt die gesamte Logik für receive_sharing_intent.
   late ShareIntentService _shareIntentService;
 
+  // ICS-Import
+  late EventImporter _eventImporter;
+  // // ICS-Export
+  // late EventImporter _eventExporter;
+
   @override
   void initState() {
     super.initState();
@@ -62,8 +68,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
       onEventsImported: _loadInitialData, // Callback, um Daten neu zu laden
     );
 
-    // NEU: Initialisierungsmethode des Services aufrufen
+    // Initialisierungsmethode des Services aufrufen
     _shareIntentService.initReceiveSharing();
+
+    _eventImporter = EventImporter(
+      calendarService: _calendarService,
+      storageService: _storageService,
+      onEventsImported: _loadInitialData,
+      showSnackBar: (snackBar) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      },
+    );
+
+    // _eventExporter = EventExporter(
+    //   calendarService: _calendarService,
+    //   showSnackBar: (snackBar) {
+    //     if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    //   },
+    // );
   }
 
   @override
@@ -148,48 +170,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  /// Importiert Termine aus einer .ics-Datei und lädt die Daten neu.
-  void _importEvents() async {
-    // ANGEPASST: Ruft die umbenannte Methode im Service auf, um Klarheit zu schaffen.
-    final List<Event> importedEvents = await _calendarService
-        .importEventsFromPicker();
+  void _importEvents() => _eventImporter.importEvents();
+  //void _exportEvents() => _eventExporter.exportEvents(_userEvents);
 
-    if (importedEvents.isNotEmpty) {
-      for (final event in importedEvents) {
-        await _storageService.addEvent(event);
-      }
-      await _loadInitialData();
-    }
-    if (!mounted) return;
-    if (importedEvents.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${importedEvents.length} Termin(e) erfolgreich importiert/aktualisiert.',
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Import abgebrochen oder keine Termine gefunden.'),
-        ),
-      );
-    }
-  }
-
-  /// Exportiert die aktuellen Termine in eine .ics-Datei.
-  void _exportEvents() async {
-    if (_userEvents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
-        ),
-      );
-      return;
-    }
-    await _calendarService.exportEvents(_userEvents);
-  }
+  // /// Exportiert die aktuellen Termine in eine .ics-Datei.
+  // void _exportEvents() async {
+  //   if (_userEvents.isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
+  //       ),
+  //     );
+  //     return;
+  //   }
+  //   await _calendarService.exportEvents(_userEvents);
+  // }
 
   /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
   void _performBackup() async {
@@ -307,7 +302,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onSelected: (value) {
               switch (value) {
                 case 'export_ics':
-                  _exportEvents();
+                  //_exportEvents();
                   break;
                 case 'import_ics':
                   _importEvents();
