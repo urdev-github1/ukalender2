@@ -15,6 +15,7 @@ import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
+import '../widgets/calendar_month_cell.dart';
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -332,153 +333,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  /// Baut die Zelle für einen Monatstag in der Kalenderansicht.
-  Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
-    final DateTime now = DateTime.now();
-    final bool isToday =
-        details.date.year == now.year &&
-        details.date.month == now.month &&
-        details.date.day == now.day;
-    final bool isHoliday = details.appointments.any(
-      (appointment) => (appointment as Event).isHoliday,
-    );
-    final bool isWeekend =
-        details.date.weekday == DateTime.saturday ||
-        details.date.weekday == DateTime.sunday;
-    final bool isCurrentMonth = details.date.month == _focusedDay.month;
-    final bool isSelected =
-        _selectedDay != null &&
-        _selectedDay!.year == details.date.year &&
-        _selectedDay!.month == details.date.month &&
-        _selectedDay!.day == details.date.day;
-
-    Color dayNumberColor;
-    if (isSelected) {
-      dayNumberColor = AppColors.dayNumberColor;
-    } else if (!isCurrentMonth) {
-      dayNumberColor = AppColors.dayNumberInactive;
-    } else if (isWeekend && !isHoliday) {
-      dayNumberColor = AppColors.weekendDay;
-    } else {
-      dayNumberColor = AppColors.textPrimary;
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isHoliday ? AppColors.holidayBackground : Colors.transparent,
-        border: Border(
-          top: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
-          left: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
-        ),
-      ),
-      padding: const EdgeInsets.all(2.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: isSelected
-                ? BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
-                  )
-                : isToday
-                ? BoxDecoration(
-                    shape: BoxShape.rectangle,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.tertiary,
-                      width: 2.0,
-                    ),
-                  )
-                : null,
-            child: Text(
-              details.date.day.toString(),
-              style: TextStyle(color: dayNumberColor, fontSize: 14),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: details.appointments.map((appointment) {
-                  final event = appointment as Event;
-                  if (event.isHoliday) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 2.0),
-                      child: Text(
-                        event.title,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.holidayText,
-                          fontSize: 10.0,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }
-
-                  final Color eventColor = CalendarColorLogic.getEventColor(
-                    event,
-                  );
-                  return GestureDetector(
-                    onTap: () async {
-                      final Event originalEvent = _userEvents.firstWhere(
-                        (e) => e.id == event.id,
-                        orElse: () => event,
-                      );
-                      final result = await Navigator.push<dynamic>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddEventScreen(
-                            selectedDate: originalEvent.date,
-                            eventToEdit: originalEvent,
-                          ),
-                        ),
-                      );
-                      if (result is Event) {
-                        _updateEvent(originalEvent, result);
-                      } else if (result is bool && result == true) {
-                        _deleteEvent(originalEvent);
-                      }
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 2.0),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3.0,
-                        vertical: 2.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: eventColor.withAlpha(204),
-                        borderRadius: BorderRadius.circular(0),
-                      ),
-                      child: Text(
-                        event.title,
-                        overflow: TextOverflow.clip,
-                        softWrap: false,
-                        maxLines: 1,
-                        textAlign: TextAlign.left,
-                        style: const TextStyle(
-                          color: AppColors.dayNumberColor,
-                          fontSize: 12.2,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Öffnet den Einstellungsbildschirm.
   void _openSettings() async {
     final shouldReload = await Navigator.push<bool>(
@@ -605,7 +459,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
-          monthCellBuilder: _monthCellBuilder,
+          //
+          monthCellBuilder: (context, details) {
+            return CalendarMonthCell(
+              details: details,
+              focusedDay: _focusedDay,
+              selectedDay: _selectedDay,
+              userEvents: _userEvents, // Die Liste der User-Events übergeben
+              onUpdateEvent: _updateEvent,
+              onDeleteEvent: _deleteEvent,
+            );
+          },
           monthViewSettings: const MonthViewSettings(
             appointmentDisplayMode: MonthAppointmentDisplayMode.none,
             numberOfWeeksInView: 6,
