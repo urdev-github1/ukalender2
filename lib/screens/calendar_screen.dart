@@ -3,10 +3,9 @@
 import 'dart:async'; // Notwendig für StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:ukalender2/calendar/event_data_source.dart';
-import 'package:ukalender2/utils/calendar_color_logic.dart';
+//import 'package:ukalender2/utils/calendar_color_logic.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
 import '../screens/add_event_screen.dart';
@@ -16,6 +15,7 @@ import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/calendar_month_cell.dart';
+import '../services/share_intent_service.dart';
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -39,8 +39,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final StorageService _storageService = StorageService();
   final CalendarService _calendarService = CalendarService();
 
-  // ANGEPASST: Stream-Abonnement für die neue Bibliothek.
-  StreamSubscription? _intentDataStreamSubscription;
+  // Kapselt die gesamte Logik für receive_sharing_intent.
+  late ShareIntentService _shareIntentService;
 
   @override
   void initState() {
@@ -50,98 +50,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _dataSource = EventDataSource([]);
     _loadInitialData();
 
-    // ANGEPASST: Neue Initialisierungsmethode für receive_sharing_intent aufrufen.
-    _initReceiveSharing();
+    // ShareIntentService initialisieren
+    _shareIntentService = ShareIntentService(
+      calendarService: _calendarService,
+      storageService: _storageService,
+      showSnackBar: (snackBar) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        }
+      },
+      onEventsImported: _loadInitialData, // Callback, um Daten neu zu laden
+    );
+
+    // NEU: Initialisierungsmethode des Services aufrufen
+    _shareIntentService.initReceiveSharing();
   }
 
   @override
   void dispose() {
-    // ANGEPASST: Das korrekte Abonnement beenden, um Speicherlecks zu vermeiden.
-    _intentDataStreamSubscription?.cancel();
+    // NEU: dispose-Methode des Services aufrufen
+    _shareIntentService.dispose();
     super.dispose();
-  }
-
-  // ERSETZT: Die alte _initShareHandler Methode wurde durch diese ersetzt.
-  /// Initialisiert den Listener für geteilte Inhalte mit receive_sharing_intent.
-  // Ersetzen Sie die fehlerhaften Zeilen in der _initReceiveSharing() Methode:
-
-  void _initReceiveSharing() {
-    // Korrekte statische Methoden für receive_sharing_intent ^1.8.1
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance
-        .getMediaStream()
-        .listen(
-          (List<SharedMediaFile> value) {
-            if (value.isNotEmpty) {
-              // print(
-              //   "ReceiveSharingIntent: Geteilte Datei empfangen (App aktiv): ${value.first.path}",
-              // );
-              _handleSharedIcsFile(value.first);
-            }
-          },
-          onError: (err) {
-            //print("ReceiveSharingIntent [ERROR]: Fehler im Media-Stream: $err");
-          },
-        );
-
-    // Korrekte statische Methode
-    ReceiveSharingIntent.instance.getInitialMedia().then((
-      List<SharedMediaFile> value,
-    ) {
-      if (value.isNotEmpty) {
-        // print(
-        //   "ReceiveSharingIntent: Geteilte Datei empfangen (beim App-Start): ${value.first.path}",
-        // );
-        _handleSharedIcsFile(value.first);
-      }
-    });
-  }
-
-  // ERSETZT: Die alte _handleSharedFile Methode wurde durch diese ersetzt.
-  /// Verarbeitet eine geteilte ICS-Datei von receive_sharing_intent.
-  Future<void> _handleSharedIcsFile(SharedMediaFile file) async {
-    // Der Pfad von dieser Bibliothek ist in der Regel bereits in einem für die App zugänglichen Cache-Ordner.
-    if (file.path.toLowerCase().endsWith('.ics')) {
-      final String path = file.path;
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Importiere geteilte Termine...')),
-      );
-
-      // Wir rufen die wiederverwendbare parseIcsFile-Methode im CalendarService auf.
-      final List<Event> importedEvents = await _calendarService.parseIcsFile(
-        path,
-      );
-
-      if (!mounted) return;
-
-      if (importedEvents.isNotEmpty) {
-        for (final event in importedEvents) {
-          await _storageService.addEvent(event);
-        }
-        await _loadInitialData();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${importedEvents.length} Termin(e) erfolgreich importiert.',
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Import fehlgeschlagen oder keine Termine in der Datei gefunden.',
-            ),
-          ),
-        );
-      }
-    } else {
-      // print(
-      //   "ReceiveSharingIntent: Geteilte Datei ist keine .ics-Datei: ${file.path}",
-      // );
-    }
   }
 
   /// Lädt die initialen Daten, einschließlich Benutzerevents und Feiertage für das aktuelle Jahr.
