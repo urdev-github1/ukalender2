@@ -15,8 +15,11 @@ import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/calendar_month_cell.dart';
 import '../services/share_intent_service.dart';
+
+// NEUE IMPORTE FÜR DIE AUSGELAGERTEN KLASSEN
 import '../features/event_import_export/event_importer.dart';
-//import '../features/event_import_export/event_exporter.dart';
+import '../features/event_import_export/event_exporter.dart';
+import '../features/event_import_export/event_backup_restorer.dart';
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -43,10 +46,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Kapselt die gesamte Logik für receive_sharing_intent.
   late ShareIntentService _shareIntentService;
 
-  // ICS-Import
+  // NEUE INSTANZEN DER MANAGER-KLASSEN
   late EventImporter _eventImporter;
-  // // ICS-Export
-  // late EventImporter _eventExporter;
+  late EventExporter _eventExporter;
+  late EventBackupRestorer _eventBackupRestorer; // Verwaltet Backup und Restore
 
   @override
   void initState() {
@@ -67,10 +70,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       },
       onEventsImported: _loadInitialData, // Callback, um Daten neu zu laden
     );
+    _shareIntentService
+        .initReceiveSharing(); // Initialisierungsmethode des Services aufrufen
 
-    // Initialisierungsmethode des Services aufrufen
-    _shareIntentService.initReceiveSharing();
-
+    // Manager-Klassen initialisieren
     _eventImporter = EventImporter(
       calendarService: _calendarService,
       storageService: _storageService,
@@ -80,12 +83,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
       },
     );
 
-    // _eventExporter = EventExporter(
-    //   calendarService: _calendarService,
-    //   showSnackBar: (snackBar) {
-    //     if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
-    //   },
-    // );
+    _eventExporter = EventExporter(
+      calendarService: _calendarService,
+      showSnackBar: (snackBar) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      },
+    );
+
+    _eventBackupRestorer = EventBackupRestorer(
+      calendarService: _calendarService,
+      storageService: _storageService,
+      onEventsRestored: _loadInitialData,
+      showSnackBar: (snackBar) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      },
+      // Übergabe der Dialog-Logik an den Manager
+      showConfirmationDialog: (contentWidget) => showDialog<String>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Backup wiederherstellen'),
+          content: contentWidget,
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('merge'),
+              child: const Text('Zusammenführen'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.destructiveActionColor,
+              ),
+              onPressed: () => Navigator.of(context).pop('replace'),
+              child: const Text('Alles Ersetzen'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Returns null
+              child: const Text('Abbrechen'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -170,91 +207,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  void _importEvents() => _eventImporter.importEvents();
-  //void _exportEvents() => _eventExporter.exportEvents(_userEvents);
+  /// Importiert Termine aus einer .ics-Datei und lädt die Daten neu.
+  void _importEvents() async {
+    await _eventImporter.importEvents();
+  }
 
-  // /// Exportiert die aktuellen Termine in eine .ics-Datei.
-  // void _exportEvents() async {
-  //   if (_userEvents.isEmpty) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
-  //       ),
-  //     );
-  //     return;
-  //   }
-  //   await _calendarService.exportEvents(_userEvents);
-  // }
+  /// Exportiert die aktuellen Termine in eine .ics-Datei.
+  void _exportEvents() async {
+    await _eventExporter.exportEvents(_userEvents);
+  }
 
   /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
   void _performBackup() async {
-    if (_userEvents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Es sind keine Termine für ein Backup vorhanden.'),
-        ),
-      );
-      return;
-    }
-    await _calendarService.createInternalBackup(_userEvents);
+    await _eventBackupRestorer.createBackup(_userEvents);
   }
 
   /// Stellt Termine aus einem internen JSON-Backup wieder her.
   void _performRestore() async {
-    final List<Event> restoredEvents = await _calendarService
-        .restoreFromInternalBackup();
-
-    if (!mounted) return;
-    if (restoredEvents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
-        ),
-      );
-      return;
-    }
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Backup wiederherstellen'),
-        content: const Text(
-          'Wie möchten Sie das Backup einspielen?\n\n'
-          'Achtung: "Alles Ersetzen" löscht alle Termine, die Sie seit diesem Backup erstellt haben!',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('merge'),
-            child: const Text('Zusammenführen'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.destructiveActionColor,
-            ),
-            onPressed: () => Navigator.of(context).pop('replace'),
-            child: const Text('Alles Ersetzen'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Returns null
-            child: const Text('Abbrechen'),
-          ),
-        ],
-      ),
-    );
-
-    if (choice == null || !mounted) return;
-    if (choice == 'replace') {
-      await _storageService.clearAllEvents();
-    }
-    for (final event in restoredEvents) {
-      await _storageService.addEvent(event);
-    }
-    await _loadInitialData();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${restoredEvents.length} Termin(e) wiederhergestellt.'),
-      ),
-    );
+    await _eventBackupRestorer.restoreBackup();
   }
 
   /// Öffnet den Einstellungsbildschirm.
@@ -290,7 +260,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(
+        systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,
@@ -302,7 +272,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onSelected: (value) {
               switch (value) {
                 case 'export_ics':
-                  //_exportEvents();
+                  _exportEvents();
                   break;
                 case 'import_ics':
                   _importEvents();
@@ -318,7 +288,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
                 value: 'export_ics',
-                enabled: false,
+                // Temporär deaktiviert, da die `_userEvents` Liste in `_exportEvents` jetzt von `EventExporter` verarbeitet wird.
+                // EventExporter prüft bereits auf leere Listen.
+                // enabled: false, // Hier kann man entscheiden, ob man es weiterhin direkt hier deaktiviert oder die Logik im Exporter nutzt.
                 child: ListTile(
                   leading: Icon(Icons.arrow_upward),
                   title: Text('Exportieren (.ics)'),
