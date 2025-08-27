@@ -115,7 +115,7 @@ class CalendarService {
   Future<List<my_event.Event>> parseIcsFile(String path) async {
     // Überprüfen, ob es sich um eine .ics-Datei handelt.
     if (!path.toLowerCase().endsWith('.ics')) {
-      print('CalendarService [ERROR]: Datei ist keine .ics-Datei: $path');
+      //print('CalendarService [ERROR]: Datei ist keine .ics-Datei: $path');
       return [];
     }
 
@@ -124,7 +124,7 @@ class CalendarService {
 
     try {
       if (!await file.exists()) {
-        print('CalendarService [ERROR]: Datei existiert nicht am Pfad: $path');
+        //print('CalendarService [ERROR]: Datei existiert nicht am Pfad: $path');
         return [];
       }
 
@@ -132,9 +132,9 @@ class CalendarService {
       final iCalendar = ical_parser.ICalendar.fromString(icsString);
 
       if (iCalendar.data.isEmpty) {
-        print(
-          'CalendarService [WARN]: ICS-Datei ist gültig, enthält aber keine Termine.',
-        );
+        // print(
+        //   'CalendarService [WARN]: ICS-Datei ist gültig, enthält aber keine Termine.',
+        // );
         return [];
       }
 
@@ -161,20 +161,20 @@ class CalendarService {
             ),
           );
         } catch (e) {
-          print(
-            'CalendarService [WARN]: Überspringe fehlerhaften Eintrag im ICS: $e',
-          );
+          // print(
+          //   'CalendarService [WARN]: Überspringe fehlerhaften Eintrag im ICS: $e',
+          // );
           continue;
         }
       }
-      print(
-        'CalendarService [SUCCESS]: ${importedEvents.length} Termin(e) erfolgreich geparst.',
-      );
+      // print(
+      //   'CalendarService [SUCCESS]: ${importedEvents.length} Termin(e) erfolgreich geparst.',
+      // );
       return importedEvents;
     } catch (e) {
-      print(
-        'CalendarService [CRITICAL ERROR]: Fehler beim Parsen der ICS-Datei: $e',
-      );
+      // print(
+      //   'CalendarService [CRITICAL ERROR]: Fehler beim Parsen der ICS-Datei: $e',
+      // );
       return [];
     }
   }

@@ -3,13 +3,10 @@
 import 'dart:async'; // Notwendig für StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-// ERSETZT: Der alte Import wurde entfernt.
-// import 'package:share_handler/share_handler.dart';
-// NEU: Import für die korrekte und funktionierende Bibliothek.
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-
 import 'package:syncfusion_flutter_calendar/calendar.dart';
+import 'package:ukalender2/calendar/event_data_source.dart';
+import 'package:ukalender2/utils/calendar_color_logic.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
 import '../screens/add_event_screen.dart';
@@ -18,36 +15,6 @@ import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
-import '../utils/calendar_color_logic.dart';
-
-/// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
-class EventDataSource extends CalendarDataSource {
-  EventDataSource(List<Event> source) {
-    appointments = source;
-  }
-
-  @override
-  DateTime getStartTime(int index) => (appointments![index] as Event).date;
-
-  @override
-  DateTime getEndTime(int index) =>
-      (appointments![index] as Event).date.add(const Duration(hours: 1));
-
-  @override
-  String getSubject(int index) => (appointments![index] as Event).title;
-
-  @override
-  Color getColor(int index) {
-    final Event event = appointments![index] as Event;
-    return CalendarColorLogic.getEventColor(event);
-  }
-
-  @override
-  bool isAllDay(int index) {
-    final Event event = appointments![index] as Event;
-    return event.isHoliday || event.isBirthday;
-  }
-}
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -104,14 +71,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .listen(
           (List<SharedMediaFile> value) {
             if (value.isNotEmpty) {
-              print(
-                "ReceiveSharingIntent: Geteilte Datei empfangen (App aktiv): ${value.first.path}",
-              );
+              // print(
+              //   "ReceiveSharingIntent: Geteilte Datei empfangen (App aktiv): ${value.first.path}",
+              // );
               _handleSharedIcsFile(value.first);
             }
           },
           onError: (err) {
-            print("ReceiveSharingIntent [ERROR]: Fehler im Media-Stream: $err");
+            //print("ReceiveSharingIntent [ERROR]: Fehler im Media-Stream: $err");
           },
         );
 
@@ -120,9 +87,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       List<SharedMediaFile> value,
     ) {
       if (value.isNotEmpty) {
-        print(
-          "ReceiveSharingIntent: Geteilte Datei empfangen (beim App-Start): ${value.first.path}",
-        );
+        // print(
+        //   "ReceiveSharingIntent: Geteilte Datei empfangen (beim App-Start): ${value.first.path}",
+        // );
         _handleSharedIcsFile(value.first);
       }
     });
@@ -170,9 +137,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       }
     } else {
-      print(
-        "ReceiveSharingIntent: Geteilte Datei ist keine .ics-Datei: ${file.path}",
-      );
+      // print(
+      //   "ReceiveSharingIntent: Geteilte Datei ist keine .ics-Datei: ${file.path}",
+      // );
     }
   }
 
