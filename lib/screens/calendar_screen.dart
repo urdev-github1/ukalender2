@@ -1,7 +1,14 @@
 // lib/screens/calendar_screen.dart
 
+import 'dart:async'; // Notwendig für StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+// ERSETZT: Der alte Import wurde entfernt.
+// import 'package:share_handler/share_handler.dart';
+// NEU: Import für die korrekte und funktionierende Bibliothek.
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../models/event.dart';
 import '../services/holiday_service.dart';
@@ -12,38 +19,30 @@ import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/calendar_color_logic.dart';
-//import '../screens/color_scheme_preview_screen.dart';
 
 /// Kalenderdatenquelle, die Termine in der Kalenderansicht anzeigt.
 class EventDataSource extends CalendarDataSource {
-  // Erstellt eine neue Instanz der EventDataSource mit der angegebenen Liste von Terminen.
   EventDataSource(List<Event> source) {
     appointments = source;
   }
 
   @override
-  // Gibt die Startzeit des Termins an der angegebenen Indexposition zurück.
   DateTime getStartTime(int index) => (appointments![index] as Event).date;
 
   @override
-  /// Gibt die Endzeit des Termins an der angegebenen Indexposition zurück.
   DateTime getEndTime(int index) =>
       (appointments![index] as Event).date.add(const Duration(hours: 1));
 
   @override
-  // Gibt den Betreff des Termins an der angegebenen Indexposition zurück.
   String getSubject(int index) => (appointments![index] as Event).title;
 
   @override
-  // Gibt die Farbe des Termins an der angegebenen Indexposition zurück.
   Color getColor(int index) {
     final Event event = appointments![index] as Event;
-    // Die ausgelagerte Logik zur Farbbestimmung wird hier aufgerufen.
     return CalendarColorLogic.getEventColor(event);
   }
 
   @override
-  // Gibt zurück, ob der Termin an der angegebenen Indexposition ganztägig ist.
   bool isAllDay(int index) {
     final Event event = appointments![index] as Event;
     return event.isHoliday || event.isBirthday;
@@ -72,6 +71,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   final StorageService _storageService = StorageService();
   final CalendarService _calendarService = CalendarService();
 
+  // ANGEPASST: Stream-Abonnement für die neue Bibliothek.
+  StreamSubscription? _intentDataStreamSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +81,99 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _currentYear = _focusedDay.year;
     _dataSource = EventDataSource([]);
     _loadInitialData();
+
+    // ANGEPASST: Neue Initialisierungsmethode für receive_sharing_intent aufrufen.
+    _initReceiveSharing();
+  }
+
+  @override
+  void dispose() {
+    // ANGEPASST: Das korrekte Abonnement beenden, um Speicherlecks zu vermeiden.
+    _intentDataStreamSubscription?.cancel();
+    super.dispose();
+  }
+
+  // ERSETZT: Die alte _initShareHandler Methode wurde durch diese ersetzt.
+  /// Initialisiert den Listener für geteilte Inhalte mit receive_sharing_intent.
+  // Ersetzen Sie die fehlerhaften Zeilen in der _initReceiveSharing() Methode:
+
+  void _initReceiveSharing() {
+    // Korrekte statische Methoden für receive_sharing_intent ^1.8.1
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance
+        .getMediaStream()
+        .listen(
+          (List<SharedMediaFile> value) {
+            if (value.isNotEmpty) {
+              print(
+                "ReceiveSharingIntent: Geteilte Datei empfangen (App aktiv): ${value.first.path}",
+              );
+              _handleSharedIcsFile(value.first);
+            }
+          },
+          onError: (err) {
+            print("ReceiveSharingIntent [ERROR]: Fehler im Media-Stream: $err");
+          },
+        );
+
+    // Korrekte statische Methode
+    ReceiveSharingIntent.instance.getInitialMedia().then((
+      List<SharedMediaFile> value,
+    ) {
+      if (value.isNotEmpty) {
+        print(
+          "ReceiveSharingIntent: Geteilte Datei empfangen (beim App-Start): ${value.first.path}",
+        );
+        _handleSharedIcsFile(value.first);
+      }
+    });
+  }
+
+  // ERSETZT: Die alte _handleSharedFile Methode wurde durch diese ersetzt.
+  /// Verarbeitet eine geteilte ICS-Datei von receive_sharing_intent.
+  Future<void> _handleSharedIcsFile(SharedMediaFile file) async {
+    // Der Pfad von dieser Bibliothek ist in der Regel bereits in einem für die App zugänglichen Cache-Ordner.
+    if (file.path.toLowerCase().endsWith('.ics')) {
+      final String path = file.path;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Importiere geteilte Termine...')),
+      );
+
+      // Wir rufen die wiederverwendbare parseIcsFile-Methode im CalendarService auf.
+      final List<Event> importedEvents = await _calendarService.parseIcsFile(
+        path,
+      );
+
+      if (!mounted) return;
+
+      if (importedEvents.isNotEmpty) {
+        for (final event in importedEvents) {
+          await _storageService.addEvent(event);
+        }
+        await _loadInitialData();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${importedEvents.length} Termin(e) erfolgreich importiert.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Import fehlgeschlagen oder keine Termine in der Datei gefunden.',
+            ),
+          ),
+        );
+      }
+    } else {
+      print(
+        "ReceiveSharingIntent: Geteilte Datei ist keine .ics-Datei: ${file.path}",
+      );
+    }
   }
 
   /// Lädt die initialen Daten, einschließlich Benutzerevents und Feiertage für das aktuelle Jahr.
@@ -110,7 +205,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             birthday.date.month,
             birthday.date.day,
           );
-          // Nur hinzufügen, wenn der Geburtstag im aktuellen Jahr oder in der Zukunft liegt
           displayEvents.add(birthday.copyWith(date: birthdayInYear));
         }
       }
@@ -141,8 +235,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (event.isHoliday) return;
     final int notificationId = event.id.hashCode;
     NotificationService().cancelReminders(notificationId);
-
-    // Entfernt auch alle Erinnerungen, die mit diesem Termin verbunden sind.
     _storageService.deleteEvent(event.id).then((_) {
       if (!mounted) return;
       _loadInitialData();
@@ -153,8 +245,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _updateEvent(Event oldEvent, Event newEvent) {
     final int oldNotificationId = oldEvent.id.hashCode;
     NotificationService().cancelReminders(oldNotificationId);
-
-    // Entfernt auch alle alten Erinnerungen, die mit dem alten Termin verbunden sind.
     _storageService.updateEvent(newEvent).then((_) {
       if (!mounted) return;
       _loadInitialData();
@@ -163,19 +253,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   /// Importiert Termine aus einer .ics-Datei und lädt die Daten neu.
   void _importEvents() async {
-    final List<Event> importedEvents = await _calendarService.importEvents();
+    // ANGEPASST: Ruft die umbenannte Methode im Service auf, um Klarheit zu schaffen.
+    final List<Event> importedEvents = await _calendarService
+        .importEventsFromPicker();
 
-    // "Insert or Replace" Logik für importierte Termine
     if (importedEvents.isNotEmpty) {
       for (final event in importedEvents) {
         await _storageService.addEvent(event);
       }
       await _loadInitialData();
     }
-
     if (!mounted) return;
-
-    // Bestätigung anzeigen, wie viele Termine importiert/aktualisiert wurden.
     if (importedEvents.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -225,8 +313,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .restoreFromInternalBackup();
 
     if (!mounted) return;
-
-    // Wenn keine Termine wiederhergestellt wurden, Abbruch.
     if (restoredEvents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -235,8 +321,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
       return;
     }
-
-    // Dialog zur Auswahl der Wiederherstellungsoption anzeigen.
     final choice = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -265,23 +349,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
 
-    // Abbruch, wenn der Dialog geschlossen oder abgebrochen wurde.
     if (choice == null || !mounted) return;
-
-    // Wenn "Alles Ersetzen" gewählt wurde, alle bestehenden Termine löschen.
     if (choice == 'replace') {
       await _storageService.clearAllEvents();
     }
-
-    // Wiederhergestellte Termine hinzufügen.
     for (final event in restoredEvents) {
       await _storageService.addEvent(event);
     }
-
-    // Daten neu laden, um die Änderungen anzuzeigen.
     await _loadInitialData();
-
-    // Bestätigung anzeigen.
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -293,32 +368,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
   /// Baut die Zelle für einen Monatstag in der Kalenderansicht.
   Widget _monthCellBuilder(BuildContext context, MonthCellDetails details) {
     final DateTime now = DateTime.now();
-    // Bestimmt, ob der Tag der heutige Tag ist.
     final bool isToday =
         details.date.year == now.year &&
         details.date.month == now.month &&
         details.date.day == now.day;
-    // Bestimmt, ob der Tag ein Feiertag ist.
     final bool isHoliday = details.appointments.any(
       (appointment) => (appointment as Event).isHoliday,
     );
-    // Bestimmt, ob der Tag ein Wochenende ist (Samstag oder Sonntag).
     final bool isWeekend =
         details.date.weekday == DateTime.saturday ||
         details.date.weekday == DateTime.sunday;
-    // Bestimmt, ob der Tag im aktuell angezeigten Monat liegt.
     final bool isCurrentMonth = details.date.month == _focusedDay.month;
-    // Bestimmt, ob der Tag der aktuell ausgewählte Tag ist.
     final bool isSelected =
         _selectedDay != null &&
         _selectedDay!.year == details.date.year &&
         _selectedDay!.month == details.date.month &&
         _selectedDay!.day == details.date.day;
 
-    // Bestimmt die Textfarbe für die Tagesnummer basierend auf verschiedenen Zuständen.
     Color dayNumberColor;
-
-    // Logik zur Bestimmung der Textfarbe
     if (isSelected) {
       dayNumberColor = AppColors.dayNumberColor;
     } else if (!isCurrentMonth) {
@@ -328,7 +395,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else {
       dayNumberColor = AppColors.textPrimary;
     }
-    // Baut die Zelle mit entsprechender Dekoration und Terminen.
+
     return Container(
       decoration: BoxDecoration(
         color: isHoliday ? AppColors.holidayBackground : Colors.transparent,
@@ -388,11 +455,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     );
                   }
 
-                  // Bestimmt die Farbe des Termins basierend auf seiner Kategorie.
                   final Color eventColor = CalendarColorLogic.getEventColor(
                     event,
                   );
-
                   return GestureDetector(
                     onTap: () async {
                       final Event originalEvent = _userEvents.firstWhere(
@@ -459,7 +524,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   @override
-  // Baut die Benutzeroberfläche des Kalenders.
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final Color startColor = Color.lerp(
@@ -467,9 +531,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       colorScheme.primaryContainer,
       0.3,
     )!;
-
-    // Farbverlaufshintergrund für den Kalenderbildschirm.
     final Color endColor = colorScheme.surfaceContainerLow;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -477,9 +540,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Theme.of(
-              context,
-            ).colorScheme.primary, // dunkles grün (#006c4e)
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -489,25 +550,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,
         ),
-
-        // Menü- und Einstellungsaktionen in der App-Leiste.
         actions: [
-          // // ================================================================
-          // // Button für das Testen verschiedener Farbschemata.
-          // // ================================================================
-          // IconButton(
-          //   icon: const Icon(Icons.color_lens_outlined),
-          //   tooltip: 'Farbschema testen',
-          //   onPressed: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(
-          //         builder: (_) => const ColorSchemePreviewScreen(),
-          //       ),
-          //     );
-          //   },
-          // ),
-          // // ================================================================
           PopupMenuButton<String>(
             icon: const Icon(Icons.import_export),
             tooltip: 'Daten importieren/exportieren',
@@ -527,7 +570,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   break;
               }
             },
-            // Menüeinträge für Import/Export und Backup/Wiederherstellung.
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
                 value: 'export_ics',
@@ -580,7 +622,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         padding: EdgeInsets.only(
           top: kToolbarHeight + MediaQuery.of(context).padding.top,
         ),
-        // Kalenderansicht mit Syncfusion Flutter Calendar.
         child: SfCalendar(
           view: _calendarView,
           dataSource: _dataSource,
@@ -594,9 +635,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             textStyle: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary, // dunkles grün (#006c4e)
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           monthCellBuilder: _monthCellBuilder,
@@ -616,8 +655,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           },
         ),
       ),
-
-      // Schaltfläche zum Hinzufügen neuer Termine.
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.floatingActionButton,
         onPressed: () async {
@@ -632,7 +669,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _addEvent(result);
           }
         },
-        // Icon für die Schaltfläche.
         child: const Icon(Icons.add),
       ),
     );

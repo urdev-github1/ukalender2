@@ -12,6 +12,34 @@ allprojects {
     }
 }
 
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                if (project.android.hasProperty("kotlinOptions")) {
+                    project.android.kotlinOptions {
+                        jvmTarget = "17"
+                    }
+                }
+                
+                if (project.android.hasProperty("compileOptions")) {
+                    project.android.compileOptions {
+                        sourceCompatibility JavaVersion.VERSION_17
+                        targetCompatibility JavaVersion.VERSION_17
+                    }
+                }
+            }
+        }
+        
+        // Für Kotlin-Tasks
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+}
+
 def newBuildDir = rootProject.layout.buildDirectory.dir('../../build').get().asFile
 rootProject.layout.buildDirectory.set(newBuildDir)
 
