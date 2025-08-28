@@ -2,7 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Bleibt, da SystemUiOverlayStyle in CalendarAppBar genutzt wird
+// import 'package:flutter/services.dart'; // Nicht mehr direkt benötigt, da in CalendarAppBar gekapselt
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:ukalender2/calendar/event_data_source.dart';
 import '../models/event.dart';
@@ -13,17 +13,17 @@ import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
-import '../widgets/calendar_month_cell.dart';
+// import '../widgets/calendar_month_cell.dart'; // Nicht mehr direkt benötigt, da in CalendarMainBody gekapselt
 import '../services/share_intent_service.dart';
 import '../features/event_import_export/event_importer.dart';
 import '../features/event_import_export/event_exporter.dart';
 import '../features/event_import_export/event_backup_restorer.dart';
 import 'package:ukalender2/screens/event_list_screen.dart';
 
-// NEUER IMPORT für die ausgelagerte Dialog-Logik
+// Importe für die ausgelagerten Komponenten
 import '../features/event_import_export/backup_restore_dialogs.dart';
-// NEUER IMPORT für die ausgelagerte AppBar
-import '../widgets/calendar_app_bar.dart'; // HINZUGEFÜGT
+import '../widgets/calendar_app_bar.dart';
+import '../widgets/calendar_main_body.dart'; // Bleibt unverändert
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -39,7 +39,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<Event> _holidays = [];
   List<Event> _allEvents = [];
   late EventDataSource _dataSource;
-  final CalendarView _calendarView = CalendarView.month;
   final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late int _currentYear;
@@ -109,7 +108,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void dispose() {
     _shareIntentService.dispose();
-    _calendarController.dispose(); // Wichtig: Controller disposes
+    _calendarController.dispose();
     super.dispose();
   }
 
@@ -180,7 +179,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // Diese Methoden bleiben hier, da sie die Business-Logik der ScreenState betreffen
   void _handleAppBarAction(String value) {
     switch (value) {
       case 'export_ics':
@@ -224,6 +222,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  void _onCalendarViewChanged(ViewChangedDetails details) {
+    final newYear = details.visibleDates.first.year;
+    if (newYear != _currentYear) {
+      setState(() {
+        _currentYear = newYear;
+        _loadHolidaysForYear(newYear);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -236,7 +244,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: CalendarAppBar(
-        calendarController: _calendarController, // Übergeben des Controllers
+        calendarController: _calendarController,
         onListPressed: () {
           Navigator.push(
             context,
@@ -248,68 +256,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           );
         },
-        // Die onTap-Methoden der CalendarAppBar leiten die Callbacks direkt an die _CalendarScreenState Methoden weiter
-        onPreviousMonth: () => _calendarController
-            .backward!(), // Könnte auch direkt in CalendarAppBar sein, wie oben definiert.
-        onNextMonth: () => _calendarController
-            .forward!(), // Könnte auch direkt in CalendarAppBar sein, wie oben definiert.
+        onPreviousMonth: () => _calendarController.backward!(),
+        onNextMonth: () => _calendarController.forward!(),
         onActionSelected: _handleAppBarAction,
         onSettingsPressed: _openSettings,
       ),
       extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [startColor, endColor],
-          ),
-        ),
-        padding: EdgeInsets.only(
-          top: kToolbarHeight + MediaQuery.of(context).padding.top,
-        ),
-        child: SfCalendar(
-          controller: _calendarController,
-          view: _calendarView,
-          dataSource: _dataSource,
-          initialDisplayDate: _focusedDay,
-          initialSelectedDate: _selectedDay,
-          onTap: _onCalendarTapped,
-          firstDayOfWeek: 1,
-          headerStyle: CalendarHeaderStyle(
-            textAlign: TextAlign.center,
-            backgroundColor: Colors.transparent,
-            textStyle: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          monthCellBuilder: (context, details) {
-            return CalendarMonthCell(
-              details: details,
-              focusedDay: _focusedDay,
-              selectedDay: _selectedDay,
-              userEvents: _userEvents,
-              onUpdateEvent: _updateEvent,
-              onDeleteEvent: _deleteEvent,
-            );
-          },
-          monthViewSettings: const MonthViewSettings(
-            appointmentDisplayMode: MonthAppointmentDisplayMode.none,
-            numberOfWeeksInView: 6,
-            showAgenda: false,
-          ),
-          onViewChanged: (ViewChangedDetails details) {
-            final newYear = details.visibleDates.first.year;
-            if (newYear != _currentYear) {
-              setState(() {
-                _currentYear = newYear;
-                _loadHolidaysForYear(newYear);
-              });
-            }
-          },
-        ),
+      body: CalendarMainBody(
+        calendarController: _calendarController,
+        dataSource: _dataSource,
+        initialDisplayDate: _focusedDay,
+        selectedDay: _selectedDay,
+        onCalendarTapped: _onCalendarTapped,
+        userEvents: _userEvents,
+        onUpdateEvent: _updateEvent,
+        onDeleteEvent: _deleteEvent,
+        onViewChanged: _onCalendarViewChanged,
+        startColor: startColor,
+        endColor: endColor,
+        focusedDay: _focusedDay,
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.floatingActionButton,
