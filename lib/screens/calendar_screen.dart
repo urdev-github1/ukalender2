@@ -1,6 +1,4 @@
-// lib/screens/calendar_screen.dart
-
-import 'dart:async'; // Notwendig für StreamSubscription
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -18,6 +16,7 @@ import '../services/share_intent_service.dart';
 import '../features/event_import_export/event_importer.dart';
 import '../features/event_import_export/event_exporter.dart';
 import '../features/event_import_export/event_backup_restorer.dart';
+import 'package:ukalender2/screens/event_list_screen.dart'; // NEUER IMPORT
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -31,7 +30,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   List<Event> _userEvents = [];
   List<Event> _holidays = [];
-  List<Event> _allEvents = [];
+  List<Event> _allEvents = []; // Diese Liste enthält bereits alle Events
   late EventDataSource _dataSource;
   final CalendarView _calendarView = CalendarView.month;
   final DateTime _focusedDay = DateTime.now();
@@ -306,6 +305,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // NEU: IconButton für die Terminliste
+        leading: IconButton(
+          icon: const Icon(Icons.list, size: 28.0),
+          tooltip: 'Terminliste anzeigen',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventListScreen(
+                  allEvents: _allEvents, // Alle Events übergeben
+                  initialSelectedDate:
+                      _selectedDay, // Aktuell ausgewählten Tag übergeben
+                ),
+              ),
+            );
+          },
+        ),
         backgroundColor: Colors.transparent,
         // Statusleiste (Akku, Uhrzeit, WLAN, usw.)
         systemOverlayStyle: const SystemUiOverlayStyle(
@@ -317,7 +333,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 100),
+            // SizedBox (width: 100) wurde entfernt, da 'leading' jetzt vorhanden ist
             IconButton(
               // Button für vorherigen Monat
               icon: const Icon(Icons.arrow_back_ios, size: 23.0),
@@ -339,6 +355,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ],
         ),
+        centerTitle: true, // Zentriert den Titel (die Pfeil-Buttons)
 
         actions: [
           PopupMenuButton<String>(
