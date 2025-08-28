@@ -182,11 +182,18 @@ class _AddEventScreenState extends State<AddEventScreen> {
     return Scaffold(
       // AppBar mit Titel und Lösch-Button (wenn Bearbeitung)
       appBar: AppBar(
-        title: Text(isEditing ? 'Termin bearbeiten' : 'Neuen Termin erstellen'),
+        title: Text(
+          isEditing ? 'Termin bearbeiten' : 'Termin erstellen',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           if (isEditing)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(
+                Icons.delete_outline,
+                size: 25,
+                color: AppColors.destructiveActionColor,
+              ),
               tooltip: 'Termin löschen',
               onPressed: () async {
                 final navigator = Navigator.of(context);
@@ -194,15 +201,24 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
-                      title: const Text('Löschen bestätigen'),
-                      content: const Text(
-                        'Möchten Sie diesen Termin wirklich endgültig löschen?',
+                      title: const Text(
+                        'Löschen bestätigen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      // content: const Text(
+                      //   'Möchten Sie diesen Termin wirklich endgültig löschen?',
+                      // ),
                       actions: <Widget>[
                         // Abbrechen-Button
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Abbrechen'),
+                          child: const Text(
+                            'Abbrechen',
+                            style: TextStyle(fontSize: 16),
+                          ),
                         ),
                         // Löschen-Button
                         TextButton(
@@ -210,7 +226,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
                             foregroundColor: AppColors.deleteButton,
                           ),
                           onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Löschen'),
+                          child: const Text(
+                            'Löschen',
+                            style: TextStyle(fontSize: 16),
+                          ),
                         ),
                       ],
                     );
@@ -254,9 +273,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 const SizedBox(height: 24),
                 SwitchListTile(
                   title: const Text('Jährlicher Geburtstag'),
-                  subtitle: const Text(
-                    'Der Termin wird jedes Jahr wiederholt.',
-                  ),
+                  // subtitle: const Text(
+                  //   'Der Termin wird jedes Jahr wiederholt.',
+                  // ),
                   value: _isBirthday,
                   onChanged: (bool value) {
                     setState(() {
