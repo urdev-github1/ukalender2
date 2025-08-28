@@ -1,4 +1,5 @@
 // lib/features/event_import_export/event_backup_restorer.dart
+
 import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../services/calendar_service.dart';
@@ -56,10 +57,7 @@ class EventBackupRestorer {
     }
 
     final choice = await _showConfirmationDialog(
-      const Text(
-        'Wie möchten Sie das Backup einspielen?\n\n'
-        'Achtung: "Alles Ersetzen" löscht alle Termine, die Sie seit diesem Backup erstellt haben!',
-      ),
+      const Text('Wie möchtest du das Backup einspielen?'),
     );
 
     if (choice == null) return; // Dialog abgebrochen
