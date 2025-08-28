@@ -20,6 +20,9 @@ import '../features/event_import_export/event_exporter.dart';
 import '../features/event_import_export/event_backup_restorer.dart';
 import 'package:ukalender2/screens/event_list_screen.dart'; // NEUER IMPORT
 
+// NEUER IMPORT für die ausgelagerte Dialog-Logik
+import '../features/event_import_export/backup_restore_dialogs.dart';
+
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -101,84 +104,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       showSnackBar: (snackBar) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
       },
-      // Übergabe der Dialog-Logik an den Manager
-      showConfirmationDialog: (contentWidget) => showDialog<String>(
-        context: context,
-        builder: (BuildContext context) {
-          String? selectedOption; // 'merge', 'replace'
-
-          return StatefulBuilder(
-            // Verwenden, um den internen Dialogzustand zu verwalten
-            builder: (context, setState) {
-              return AlertDialog(
-                title: const Text('Backup wiederherstellen'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    contentWidget, // Die Anweisung von EventBackupRestorer
-                    const SizedBox(height: 20),
-                    RadioListTile<String>(
-                      title: const Text('Termine zusammenführen'),
-                      // subtitle: const Text(
-                      //   'Bestehende Termine bleiben erhalten.',
-                      // ),
-                      value: 'merge',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value;
-                        });
-                      },
-                    ),
-                    RadioListTile<String>(
-                      title: const Text('Alle Termine ersetzen'),
-                      // subtitle: Text(
-                      //   'ACHTUNG: Bestehenden Termine werden gelöscht.',
-                      //   style: TextStyle(
-                      //     color: AppColors.destructiveActionColor,
-                      //     fontWeight: FontWeight.bold,
-                      //   ),
-                      // ),
-                      value: 'replace',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(), // Gibt null zurück bei Abbruch
-                    child: const Text('Abbrechen'),
-                  ),
-                  ElevatedButton(
-                    // Verwenden Sie ElevatedButton für die Hauptaktion
-                    onPressed: selectedOption == null
-                        ? null // Deaktivieren, wenn keine Option ausgewählt ist
-                        : () => Navigator.of(context).pop(selectedOption),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedOption == 'replace'
-                          ? AppColors
-                                .destructiveActionColor // Rot für "Alles Ersetzen"
-                          : Theme.of(context)
-                                .colorScheme
-                                .primary, // Standard für "Zusammenführen"
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Bestätigen'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      ),
+      // Übergabe der Dialog-Logik an den Manager - JETZT AUSGELAGERT
+      showConfirmationDialog: (contentWidget) =>
+          showBackupRestoreConfirmationDialog(
+            context: context,
+            contentWidget: contentWidget,
+          ),
     );
   }
 
