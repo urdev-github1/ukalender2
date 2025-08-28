@@ -18,14 +18,14 @@ class CalendarMonthCell extends StatelessWidget {
   final Function(Event eventToDelete) onDeleteEvent;
 
   const CalendarMonthCell({
-    Key? key,
+    super.key,
     required this.details,
     required this.focusedDay,
     required this.selectedDay,
     required this.userEvents,
     required this.onUpdateEvent,
     required this.onDeleteEvent,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

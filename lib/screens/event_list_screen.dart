@@ -1,3 +1,5 @@
+// lib/screens/event_list_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -12,10 +14,10 @@ class EventListScreen extends StatefulWidget {
   final DateTime? initialSelectedDate;
 
   const EventListScreen({
-    Key? key,
+    super.key,
     required this.allEvents,
     this.initialSelectedDate,
-  }) : super(key: key);
+  });
 
   @override
   State<EventListScreen> createState() => _EventListScreenState();
@@ -109,9 +111,9 @@ class _EventListScreenState extends State<EventListScreen> {
       if (groupDate.isAtSameMomentAs(today) || groupDate.isAfter(today)) {
         targetScrollIndex = i;
         foundTarget = true;
-        debugPrint(
-          'EventListScreen: Ziel gefunden bei Index $i für Datum ${groupDate}',
-        );
+        // debugPrint(
+        //   'EventListScreen: Ziel gefunden bei Index $i für Datum $groupDate',
+        // );
         break;
       }
     }
@@ -196,13 +198,12 @@ class _EventListScreenState extends State<EventListScreen> {
                           vertical: 8.0,
                         ),
                         child: Text(
-                          DateFormat.EEEE('de_DE').format(date) +
-                              ', ' +
-                              DateFormat.yMMMMd('de_DE').format(date),
+                          '${DateFormat.EEEE('de_DE').format(date)}, ${DateFormat.yMMMMd('de_DE').format(date)}',
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 18,
                               ),
                         ),
                       ),
@@ -283,7 +284,7 @@ class _EventListScreenState extends State<EventListScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   );
                 },
