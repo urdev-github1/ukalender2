@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-// import 'package:flutter/services.dart'; // Nicht mehr direkt benötigt, da in CalendarAppBar gekapselt
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:ukalender2/calendar/event_data_source.dart';
 import '../models/event.dart';
@@ -13,17 +12,14 @@ import '../services/calendar_service.dart';
 import '../screens/settings_screen.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
-// import '../widgets/calendar_month_cell.dart'; // Nicht mehr direkt benötigt, da in CalendarMainBody gekapselt
 import '../services/share_intent_service.dart';
 import '../features/event_import_export/event_importer.dart';
 import '../features/event_import_export/event_exporter.dart';
 import '../features/event_import_export/event_backup_restorer.dart';
 import 'package:ukalender2/screens/event_list_screen.dart';
-
-// Importe für die ausgelagerten Komponenten
 import '../features/event_import_export/backup_restore_dialogs.dart';
 import '../widgets/calendar_app_bar.dart';
-import '../widgets/calendar_main_body.dart'; // Bleibt unverändert
+import '../widgets/calendar_main_body.dart';
 
 /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
 class CalendarScreen extends StatefulWidget {
@@ -52,6 +48,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   late EventExporter _eventExporter;
   late EventBackupRestorer _eventBackupRestorer;
 
+  // CalendarController kommt aus dem Syncfusion Flutter Calendar Paket.
+  // _calendarController <- Instanz von CalendarController()
   final CalendarController _calendarController = CalendarController();
 
   @override
@@ -241,32 +239,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
       0.3,
     )!;
     final Color endColor = colorScheme.surfaceContainerLow;
-
+    // Struktur des Kalender-Screens
     return Scaffold(
+      // Benutzerdefinierte AppBar
+      // CalendarAppBar Widget (lib/widgets/calendar_app_bar.dart)
       appBar: CalendarAppBar(
         calendarController: _calendarController,
+        // Callback-Funktion (Bedienungen in der AppBar)
         onListPressed: () {
+          // Terminliste aufrufen
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => EventListScreen(
+                // Liste mit den Events übergeben
                 allEvents: _allEvents,
+                // Events ab dem aktuellen Datum anzeigen
                 initialSelectedDate: _selectedDay,
               ),
             ),
           );
         },
+        // Callback-Funktionen
         onPreviousMonth: () => _calendarController.backward!(),
         onNextMonth: () => _calendarController.forward!(),
         onActionSelected: _handleAppBarAction,
         onSettingsPressed: _openSettings,
       ),
+
       extendBodyBehindAppBar: true,
+
+      // Kalendergitter (lib/widgets/calendar_main_body.dart)
       body: CalendarMainBody(
         calendarController: _calendarController,
         dataSource: _dataSource,
         initialDisplayDate: _focusedDay,
         selectedDay: _selectedDay,
+        // Callback-Funktion
         onCalendarTapped: _onCalendarTapped,
         userEvents: _userEvents,
         onUpdateEvent: _updateEvent,
@@ -276,6 +285,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         endColor: endColor,
         focusedDay: _focusedDay,
       ),
+
+      // Termine erstellen
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.floatingActionButton,
         onPressed: () async {

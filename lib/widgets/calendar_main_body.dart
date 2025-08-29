@@ -1,4 +1,5 @@
 // lib/screens/calendar_screen/widgets/calendar_main_body.dart
+
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:ukalender2/calendar/event_data_source.dart';
@@ -65,8 +66,7 @@ class CalendarMainBody extends StatelessWidget {
           textAlign: TextAlign.center,
           backgroundColor: Colors.transparent,
           textStyle: TextStyle(
-            fontSize:
-                18, // Gegebenenfalls Schriftgröße anpassen, wenn Header kleiner wird
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.primary,
           ),

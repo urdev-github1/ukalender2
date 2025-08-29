@@ -2,16 +2,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:syncfusion_flutter_calendar/calendar.dart'; // Benötigt für CalendarController
+import 'package:syncfusion_flutter_calendar/calendar.dart';
 
+/// Funktionen der AppBar
 class CalendarAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onListPressed;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
-  final Function(String) onActionSelected; // Für PopupMenuButton
+  final Function(String) onActionSelected;
   final VoidCallback onSettingsPressed;
   final CalendarController
-  calendarController; // Der Controller wird hier übergeben
+  // Der Controller wird hier übergeben
+  calendarController;
 
   const CalendarAppBar({
     super.key,
@@ -20,7 +22,7 @@ class CalendarAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onNextMonth,
     required this.onActionSelected,
     required this.onSettingsPressed,
-    required this.calendarController, // Parameter hinzugefügt
+    required this.calendarController,
   });
 
   @override
@@ -43,15 +45,13 @@ class CalendarAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             icon: const Icon(Icons.arrow_back_ios, size: 23.0),
             tooltip: 'Vorheriger Monat',
-            onPressed: () => calendarController
-                .backward!(), // Interagiert mit dem Controller
+            onPressed: () => calendarController.backward!(),
           ),
           const SizedBox(width: 35),
           IconButton(
             icon: const Icon(Icons.arrow_forward_ios, size: 23.0),
             tooltip: 'Nächster Monat',
-            onPressed: () =>
-                calendarController.forward!(), // Interagiert mit dem Controller
+            onPressed: () => calendarController.forward!(),
           ),
         ],
       ),

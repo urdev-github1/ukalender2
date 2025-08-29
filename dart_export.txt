@@ -1,0 +1,3186 @@
+Verzeichnisstruktur des lib-Ordners:
+
+└── calendar/
+    └── event_data_source.dart
+└── features/
+    ├── event_import_export/
+    │   ├── backup_restore_dialogs.dart
+    │   ├── event_backup_restorer.dart
+    │   ├── event_exporter.dart
+    │   └── event_importer.dart
+    ├── event_management/
+    │   └── event_controller.dart
+└── generated/
+└── models/
+    └── event.dart
+└── screens/
+    ├── add_event_screen.dart
+    ├── calendar_screen.dart
+    ├── color_scheme_preview_screen.dart
+    ├── event_list_screen.dart
+    └── settings_screen.dart
+└── services/
+    ├── calendar_service.dart
+    ├── database_helper.dart
+    ├── holiday_service.dart
+    ├── notification_service.dart
+    ├── share_intent_service.dart
+    └── storage_service.dart
+└── utils/
+    ├── app_colors.dart
+    └── calendar_color_logic.dart
+└── widgets/
+    ├── calendar_app_bar.dart
+    ├── calendar_main_body.dart
+    └── calendar_month_cell.dart
+└── main.dart
+
+
+================================================================================
+
+Dateiinhalte:
+
+// ==== lib\calendar\event_data_source.dart ====
+ 1: // lib/calendar/event_data_source
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'package:syncfusion_flutter_calendar/calendar.dart';
+ 5: import '../models/event.dart';
+ 6: import '../utils/calendar_color_logic.dart'; // Wichtig: Passe den Pfad an, falls anders
+ 7: 
+ 8: /// EventDataSource dient als Schnittstelle zwischen den eigenen Event-Daten
+ 9: /// (Modelklasse `Event`) und dem Syncfusion-Kalender-Widget.
+10: ///
+11: /// Sie stellt sicher, dass der Kalender weiß:
+12: /// - Wann ein Termin startet/endet
+13: /// - Welcher Titel angezeigt werden soll
+14: /// - Welche Farbe der Termin hat
+15: /// - Ob es sich um einen Ganztagstermin handelt
+16: class EventDataSource extends CalendarDataSource {
+17:   /// Konstruktor: Übergibt die Eventliste an die `appointments`-Eigenschaft
+18:   /// der Basisklasse `CalendarDataSource`.
+19:   EventDataSource(List<Event> source) {
+20:     appointments = source;
+21:   }
+22: 
+23:   /// Liefert den Startzeitpunkt eines Termins zurück.
+24:   @override
+25:   DateTime getStartTime(int index) => (appointments![index] as Event).date;
+26: 
+27:   /// Liefert den Endzeitpunkt eines Termins zurück.
+28:   /// Standardmäßig wird hier eine Stunde nach dem Start angenommen.
+29:   @override
+30:   DateTime getEndTime(int index) =>
+31:       (appointments![index] as Event).date.add(const Duration(hours: 1));
+32: 
+33:   /// Gibt den Titel (Betreff) des Termins zurück, der im Kalender angezeigt wird.
+34:   @override
+35:   String getSubject(int index) => (appointments![index] as Event).title;
+36: 
+37:   /// Bestimmt die Farbe des Termins im Kalender.
+38:   @override
+39:   Color getColor(int index) {
+40:     final Event event = appointments![index] as Event;
+41:     return CalendarColorLogic.getEventColor(event);
+42:   }
+43: 
+44:   /// Definiert, ob es sich bei dem Termin um einen Ganztagstermin handelt.
+45:   @override
+46:   bool isAllDay(int index) {
+47:     final Event event = appointments![index] as Event;
+48:     return event.isHoliday || event.isBirthday;
+49:   }
+50: }
+51: 
+
+// ==== lib\features\event_import_export\backup_restore_dialogs.dart ====
+ 1: // lib/features/event_import_export/backup_restore_dialogs.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'package:ukalender2/utils/app_colors.dart';
+ 5: 
+ 6: Future<String?> showBackupRestoreConfirmationDialog({
+ 7:   required BuildContext context,
+ 8:   required Widget contentWidget,
+ 9: }) {
+10:   String? selectedOption; // 'merge', 'replace'
+11: 
+12:   return showDialog<String>(
+13:     context: context,
+14:     builder: (BuildContext context) {
+15:       return StatefulBuilder(
+16:         builder: (context, setState) {
+17:           return AlertDialog(
+18:             title: const Text('Backup wiederherstellen'),
+19:             content: Column(
+20:               mainAxisSize: MainAxisSize.min,
+21:               crossAxisAlignment: CrossAxisAlignment.start,
+22:               children: [
+23:                 contentWidget,
+24:                 const SizedBox(height: 20),
+25:                 RadioListTile<String>(
+26:                   title: const Text('Termine zusammenführen'),
+27:                   value: 'merge',
+28:                   groupValue: selectedOption,
+29:                   onChanged: (value) {
+30:                     setState(() {
+31:                       selectedOption = value;
+32:                     });
+33:                   },
+34:                 ),
+35:                 RadioListTile<String>(
+36:                   title: const Text('Alle Termine ersetzen'),
+37:                   value: 'replace',
+38:                   groupValue: selectedOption,
+39:                   onChanged: (value) {
+40:                     setState(() {
+41:                       selectedOption = value;
+42:                     });
+43:                   },
+44:                 ),
+45:               ],
+46:             ),
+47:             actions: <Widget>[
+48:               TextButton(
+49:                 onPressed: () => Navigator.of(context).pop(),
+50:                 child: const Text('Abbrechen'),
+51:               ),
+52:               ElevatedButton(
+53:                 onPressed: selectedOption == null
+54:                     ? null
+55:                     : () => Navigator.of(context).pop(selectedOption),
+56:                 style: ElevatedButton.styleFrom(
+57:                   backgroundColor: selectedOption == 'replace'
+58:                       ? AppColors.destructiveActionColor
+59:                       : Theme.of(context).colorScheme.primary,
+60:                   foregroundColor: Colors.white,
+61:                 ),
+62:                 child: const Text('Bestätigen'),
+63:               ),
+64:             ],
+65:           );
+66:         },
+67:       );
+68:     },
+69:   );
+70: }
+71: 
+
+// ==== lib\features\event_import_export\event_backup_restorer.dart ====
+ 1: // lib/features/event_import_export/event_backup_restorer.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import '../../models/event.dart';
+ 5: import '../../services/calendar_service.dart';
+ 6: import '../../services/storage_service.dart';
+ 7: //import '../../utils/app_colors.dart'; // Sicherstellen, dass AppColors importiert wird
+ 8: 
+ 9: class EventBackupRestorer {
+10:   final CalendarService _calendarService;
+11:   final StorageService _storageService;
+12:   final Function() _onEventsRestored; // Callback, um Daten im UI neu zu laden
+13:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
+14:   final Future<String?> Function(Widget content)
+15:   _showConfirmationDialog; // Callback für den Dialog
+16: 
+17:   EventBackupRestorer({
+18:     required CalendarService calendarService,
+19:     required StorageService storageService,
+20:     required Function() onEventsRestored,
+21:     required Function(SnackBar) showSnackBar,
+22:     required Future<String?> Function(Widget content) showConfirmationDialog,
+23:   }) : _calendarService = calendarService,
+24:        _storageService = storageService,
+25:        _onEventsRestored = onEventsRestored,
+26:        _showSnackBar = showSnackBar,
+27:        _showConfirmationDialog = showConfirmationDialog;
+28: 
+29:   /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
+30:   Future<void> createBackup(List<Event> userEvents) async {
+31:     if (userEvents.isEmpty) {
+32:       _showSnackBar(
+33:         const SnackBar(
+34:           content: Text('Es sind keine Termine für ein Backup vorhanden.'),
+35:         ),
+36:       );
+37:       return;
+38:     }
+39:     await _calendarService.createInternalBackup(userEvents);
+40:     _showSnackBar(
+41:       const SnackBar(content: Text('Backup erfolgreich erstellt.')),
+42:     );
+43:   }
+44: 
+45:   /// Stellt Termine aus einem internen JSON-Backup wieder her.
+46:   Future<void> restoreBackup() async {
+47:     final List<Event> restoredEvents = await _calendarService
+48:         .restoreFromInternalBackup();
+49: 
+50:     if (restoredEvents.isEmpty) {
+51:       _showSnackBar(
+52:         const SnackBar(
+53:           content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
+54:         ),
+55:       );
+56:       return;
+57:     }
+58: 
+59:     final choice = await _showConfirmationDialog(
+60:       const Text('Wie möchtest du das Backup einspielen?'),
+61:     );
+62: 
+63:     if (choice == null) return; // Dialog abgebrochen
+64: 
+65:     if (choice == 'replace') {
+66:       await _storageService.clearAllEvents();
+67:     }
+68:     for (final event in restoredEvents) {
+69:       await _storageService.addEvent(event);
+70:     }
+71:     await _onEventsRestored(); // UI informieren, dass Daten neu geladen werden müssen
+72: 
+73:     _showSnackBar(
+74:       SnackBar(
+75:         content: Text('${restoredEvents.length} Termin(e) wiederhergestellt.'),
+76:       ),
+77:     );
+78:   }
+79: }
+80: 
+
+// ==== lib\features\event_import_export\event_exporter.dart ====
+ 1: // lib/features/event_import_export/event_exporter.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import '../../models/event.dart';
+ 5: import '../../services/calendar_service.dart';
+ 6: 
+ 7: class EventExporter {
+ 8:   final CalendarService _calendarService;
+ 9:   final Function(SnackBar) _showSnackBar;
+10: 
+11:   EventExporter({
+12:     required CalendarService calendarService,
+13:     required Function(SnackBar) showSnackBar,
+14:   }) : _calendarService = calendarService,
+15:        _showSnackBar = showSnackBar;
+16: 
+17:   Future<void> exportEvents(List<Event> userEvents) async {
+18:     if (userEvents.isEmpty) {
+19:       _showSnackBar(
+20:         const SnackBar(
+21:           content: Text('Es sind keine Termine zum Exportieren vorhanden.'),
+22:         ),
+23:       );
+24:       return;
+25:     }
+26:     await _calendarService.exportEvents(userEvents);
+27:     _showSnackBar(
+28:       const SnackBar(content: Text('Termine erfolgreich exportiert.')),
+29:     );
+30:   }
+31: }
+32: 
+
+// ==== lib\features\event_import_export\event_importer.dart ====
+ 1: // lib/features/event_import_export/event_importer.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import '../../models/event.dart';
+ 5: import '../../services/calendar_service.dart';
+ 6: import '../../services/storage_service.dart';
+ 7: 
+ 8: class EventImporter {
+ 9:   final CalendarService _calendarService;
+10:   final StorageService _storageService;
+11:   final Function() _onEventsImported; // Callback, um Daten im UI neu zu laden
+12:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
+13: 
+14:   EventImporter({
+15:     required CalendarService calendarService,
+16:     required StorageService storageService,
+17:     required Function() onEventsImported,
+18:     required Function(SnackBar) showSnackBar,
+19:   }) : _calendarService = calendarService,
+20:        _storageService = storageService,
+21:        _onEventsImported = onEventsImported,
+22:        _showSnackBar = showSnackBar;
+23: 
+24:   Future<void> importEvents() async {
+25:     final List<Event> importedEvents = await _calendarService
+26:         .importEventsFromPicker();
+27: 
+28:     if (importedEvents.isNotEmpty) {
+29:       for (final event in importedEvents) {
+30:         await _storageService.addEvent(event);
+31:       }
+32:       await _onEventsImported(); // UI informieren, dass Daten neu geladen werden müssen
+33:       _showSnackBar(
+34:         SnackBar(
+35:           content: Text(
+36:             '${importedEvents.length} Termin(e) erfolgreich importiert/aktualisiert.',
+37:           ),
+38:         ),
+39:       );
+40:     } else {
+41:       _showSnackBar(
+42:         const SnackBar(
+43:           content: Text('Import abgebrochen oder keine Termine gefunden.'),
+44:         ),
+45:       );
+46:     }
+47:   }
+48: }
+49: 
+
+// ==== lib\features\event_management\event_controller.dart ====
+1: 
+
+// ==== lib\models\event.dart ====
+ 1: // lib/models/event.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'package:json_annotation/json_annotation.dart';
+ 5: import '../utils/app_colors.dart';
+ 6: 
+ 7: part 'event.g.dart';
+ 8: 
+ 9: // Benutzerdefinierte Serialisierungsfunktionen
+10: String _dateToJson(DateTime date) => date.toUtc().toIso8601String();
+11: 
+12: // Datum als ISO8601 String speichern und in lokale Zeit umwandeln
+13: DateTime _dateFromJson(String dateString) =>
+14:     DateTime.parse(dateString).toLocal();
+15: 
+16: // Farbe als ARGB int speichern
+17: int _colorToJson(Color color) => color.toARGB32();
+18: Color _colorFromJson(int value) => Color(value);
+19: 
+20: // Bool als int (0/1) speichern
+21: int _boolToInt(bool b) => b ? 1 : 0;
+22: bool _intToBool(int i) => i == 1;
+23: 
+24: /// Event Modell mit JSON-Serialisierung
+25: @JsonSerializable()
+26: class Event {
+27:   final String id;
+28:   final String title;
+29:   final String? description;
+30: 
+31:   // Feiertag als int (0/1) in der DB speichern
+32:   @JsonKey(toJson: _boolToInt, fromJson: _intToBool)
+33:   final bool isHoliday;
+34: 
+35:   // Geburtstag als int (0/1) in der DB speichern
+36:   @JsonKey(defaultValue: false, toJson: _boolToInt, fromJson: _intToBool)
+37:   final bool isBirthday;
+38: 
+39:   // Datum als ISO8601 String in der DB speichern
+40:   @JsonKey(toJson: _dateToJson, fromJson: _dateFromJson)
+41:   final DateTime date;
+42: 
+43:   // Farbe als ARGB int in der DB speichern
+44:   @JsonKey(toJson: _colorToJson, fromJson: _colorFromJson)
+45:   final Color color;
+46: 
+47:   // Konstruktor
+48:   Event({
+49:     required this.id,
+50:     required this.title,
+51:     this.description,
+52:     required this.date,
+53:     this.isHoliday = false,
+54:     this.isBirthday = false,
+55:     this.color = AppColors.lightBlue,
+56:   });
+57: 
+58:   // JSON-Deserialisierung (Ein Event-Objekt aus einem Json erzeugen.)
+59:   factory Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
+60: 
+61:   // JSON-Serialisierung (Ein Json aus einem Event-Objekt erzeugen.)
+62:   Map<String, dynamic> toJson() => _$EventToJson(this);
+63: 
+64:   // Kopiert das Event mit optionalen neuen Werten
+65:   Event copyWith({
+66:     String? id,
+67:     String? title,
+68:     String? description,
+69:     DateTime? date,
+70:     bool? isHoliday,
+71:     bool? isBirthday,
+72:     Color? color,
+73:   }) {
+74:     return Event(
+75:       id: id ?? this.id,
+76:       title: title ?? this.title,
+77:       description: description ?? this.description,
+78:       date: date ?? this.date,
+79:       isHoliday: isHoliday ?? this.isHoliday,
+80:       isBirthday: isBirthday ?? this.isBirthday,
+81:       color: color ?? this.color,
+82:     );
+83:   }
+84: }
+85: 
+
+// ==== lib\screens\add_event_screen.dart ====
+  1: // lib/screens/add_event_screen.dart
+  2: 
+  3: import 'package:flutter/material.dart';
+  4: import 'package:intl/intl.dart';
+  5: import 'package:uuid/uuid.dart';
+  6: import '../models/event.dart';
+  7: import '../services/notification_service.dart';
+  8: import '../utils/app_colors.dart';
+  9: 
+ 10: /// Screen zum Hinzufügen oder Bearbeiten eines Termins
+ 11: class AddEventScreen extends StatefulWidget {
+ 12:   final DateTime selectedDate;
+ 13:   final Event? eventToEdit;
+ 14: 
+ 15:   // Konstruktor
+ 16:   const AddEventScreen({
+ 17:     super.key,
+ 18:     required this.selectedDate,
+ 19:     this.eventToEdit,
+ 20:   });
+ 21: 
+ 22:   @override
+ 23:   State<AddEventScreen> createState() => _AddEventScreenState();
+ 24: }
+ 25: 
+ 26: /// State-Klasse für den AddEventScreen
+ 27: class _AddEventScreenState extends State<AddEventScreen> {
+ 28:   final _formKey = GlobalKey<FormState>();
+ 29:   final _titleController = TextEditingController();
+ 30:   final _descController = TextEditingController();
+ 31:   late DateTime _selectedDate;
+ 32:   late TimeOfDay _selectedTime;
+ 33:   late Color _selectedColor;
+ 34:   bool _isBirthday = false;
+ 35: 
+ 36:   // UUID-Generator für eindeutige IDs
+ 37:   final Uuid _uuid = const Uuid();
+ 38: 
+ 39:   @override
+ 40:   void initState() {
+ 41:     super.initState();
+ 42:     _selectedDate = widget.selectedDate;
+ 43: 
+ 44:     // Wenn ein Termin bearbeitet wurde.
+ 45:     if (widget.eventToEdit != null) {
+ 46:       final event = widget.eventToEdit!;
+ 47:       _titleController.text = event.title;
+ 48:       _descController.text = event.description ?? '';
+ 49:       _selectedDate = event.date;
+ 50:       _selectedTime = TimeOfDay.fromDateTime(event.date);
+ 51:       _selectedColor = event.color; // Hintergrundfarbe des Termins (lightBlue)
+ 52:       _isBirthday = event.isBirthday;
+ 53:     } else {
+ 54:       _selectedTime = TimeOfDay.now();
+ 55:       // Standardfarbe für neue Termine (hellblau)
+ 56:       _selectedColor = AppColors.eventColors.last;
+ 57:     }
+ 58:   }
+ 59: 
+ 60:   @override
+ 61:   void dispose() {
+ 62:     _titleController.dispose();
+ 63:     _descController.dispose();
+ 64:     super.dispose();
+ 65:   }
+ 66: 
+ 67:   // Datumsauswahl-Dialog anzeigen
+ 68:   Future<void> _selectDate() async {
+ 69:     final pickedDate = await showDatePicker(
+ 70:       context: context,
+ 71:       initialDate: _selectedDate,
+ 72:       firstDate: DateTime(2000),
+ 73:       lastDate: DateTime(2101),
+ 74:       locale: const Locale('de', 'DE'),
+ 75:     );
+ 76:     if (pickedDate != null && pickedDate != _selectedDate) {
+ 77:       setState(() {
+ 78:         _selectedDate = pickedDate;
+ 79:       });
+ 80:     }
+ 81:   }
+ 82: 
+ 83:   // Uhrzeitauswahl-Dialog anzeigen
+ 84:   Future<void> _selectTime() async {
+ 85:     final pickedTime = await showTimePicker(
+ 86:       context: context,
+ 87:       initialTime: _selectedTime,
+ 88:     );
+ 89:     if (pickedTime != null && pickedTime != _selectedTime) {
+ 90:       setState(() {
+ 91:         _selectedTime = pickedTime;
+ 92:       });
+ 93:     }
+ 94:   }
+ 95: 
+ 96:   // Farbauswahl-Widget
+ 97:   Widget _buildColorPicker() {
+ 98:     return Column(
+ 99:       crossAxisAlignment: CrossAxisAlignment.start,
+100:       children: [
+101:         Text('Farbauswahl:', style: Theme.of(context).textTheme.titleMedium),
+102:         const SizedBox(height: 10),
+103:         Wrap(
+104:           spacing: 12.0,
+105:           runSpacing: 10.0,
+106:           children: AppColors.eventColors.map((color) {
+107:             final isSelected = _selectedColor == color;
+108:             return GestureDetector(
+109:               onTap: () {
+110:                 setState(() {
+111:                   _selectedColor = color;
+112:                 });
+113:               },
+114:               // Farbauswahl-Kreis
+115:               child: Container(
+116:                 width: 40,
+117:                 height: 40,
+118:                 decoration: BoxDecoration(
+119:                   color: color,
+120:                   shape: BoxShape.circle,
+121:                   border: isSelected
+122:                       ? Border.all(
+123:                           color: AppColors.selectColorChoise,
+124:                           width: 3.0,
+125:                         )
+126:                       : Border.all(
+127:                           color: AppColors.deselectColorChoise,
+128:                           width: 1.5,
+129:                         ),
+130:                 ),
+131:                 child: isSelected
+132:                     ? const Icon(
+133:                         Icons.check,
+134:                         color: AppColors.checkIcon,
+135:                         size: 22,
+136:                       )
+137:                     : null,
+138:               ),
+139:             );
+140:           }).toList(),
+141:         ),
+142:       ],
+143:     );
+144:   }
+145: 
+146:   // Widget für ein Textfeld mit Titel
+147:   Widget _buildTitledTextField({
+148:     required BuildContext context,
+149:     required String label,
+150:     required TextEditingController controller,
+151:     String? hintText,
+152:     String? Function(String?)? validator,
+153:   }) {
+154:     // Styling für Titel + Beschreibung
+155:     final labelStyle = Theme.of(
+156:       context,
+157:     ).textTheme.titleMedium?.copyWith(color: AppColors.lableTextfield);
+158: 
+159:     return Column(
+160:       crossAxisAlignment: CrossAxisAlignment.start,
+161:       children: [
+162:         Text(label, style: labelStyle),
+163:         const SizedBox(height: 8.0),
+164:         TextFormField(
+165:           controller: controller,
+166:           decoration: InputDecoration(
+167:             hintText: hintText,
+168:             labelText: null,
+169:             border: const UnderlineInputBorder(),
+170:             contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+171:           ),
+172:           validator: validator,
+173:         ),
+174:       ],
+175:     );
+176:   }
+177: 
+178:   @override
+179:   Widget build(BuildContext context) {
+180:     final isEditing = widget.eventToEdit != null;
+181: 
+182:     return Scaffold(
+183:       // AppBar mit Titel und Lösch-Button (wenn Bearbeitung)
+184:       appBar: AppBar(
+185:         title: Text(
+186:           isEditing ? 'Termin bearbeiten' : 'Termin erstellen',
+187:           style: const TextStyle(fontWeight: FontWeight.bold),
+188:         ),
+189:         actions: [
+190:           if (isEditing)
+191:             IconButton(
+192:               icon: const Icon(
+193:                 Icons.delete_outline,
+194:                 size: 25,
+195:                 color: AppColors.destructiveActionColor,
+196:               ),
+197:               tooltip: 'Termin löschen',
+198:               onPressed: () async {
+199:                 final navigator = Navigator.of(context);
+200:                 final confirmDelete = await showDialog<bool>(
+201:                   context: context,
+202:                   builder: (BuildContext context) {
+203:                     return AlertDialog(
+204:                       title: const Text(
+205:                         'Löschen bestätigen',
+206:                         style: TextStyle(
+207:                           fontSize: 20,
+208:                           fontWeight: FontWeight.bold,
+209:                         ),
+210:                       ),
+211:                       // content: const Text(
+212:                       //   'Möchten Sie diesen Termin wirklich endgültig löschen?',
+213:                       // ),
+214:                       actions: <Widget>[
+215:                         // Abbrechen-Button
+216:                         TextButton(
+217:                           onPressed: () => Navigator.of(context).pop(false),
+218:                           child: const Text(
+219:                             'Abbrechen',
+220:                             style: TextStyle(fontSize: 16),
+221:                           ),
+222:                         ),
+223:                         // Löschen-Button
+224:                         TextButton(
+225:                           style: TextButton.styleFrom(
+226:                             foregroundColor: AppColors.deleteButton,
+227:                           ),
+228:                           onPressed: () => Navigator.of(context).pop(true),
+229:                           child: const Text(
+230:                             'Löschen',
+231:                             style: TextStyle(fontSize: 16),
+232:                           ),
+233:                         ),
+234:                       ],
+235:                     );
+236:                   },
+237:                 );
+238: 
+239:                 if (!mounted) return;
+240:                 if (confirmDelete == true) {
+241:                   navigator.pop(true);
+242:                 }
+243:               },
+244:             ),
+245:         ],
+246:       ),
+247:       // Formular zum Eingeben der Termindaten
+248:       body: SingleChildScrollView(
+249:         child: Padding(
+250:           padding: const EdgeInsets.all(16.0),
+251:           child: Form(
+252:             key: _formKey,
+253:             child: Column(
+254:               crossAxisAlignment: CrossAxisAlignment.start,
+255:               children: [
+256:                 _buildTitledTextField(
+257:                   context: context,
+258:                   label: 'Titel',
+259:                   controller: _titleController,
+260:                   validator: (value) {
+261:                     if (value == null || value.isEmpty) {
+262:                       return 'Bitte geben Sie einen Titel ein.';
+263:                     }
+264:                     return null;
+265:                   },
+266:                 ),
+267:                 const SizedBox(height: 16),
+268:                 _buildTitledTextField(
+269:                   context: context,
+270:                   label: 'Beschreibung (optional)',
+271:                   controller: _descController,
+272:                 ),
+273:                 const SizedBox(height: 24),
+274:                 SwitchListTile(
+275:                   title: const Text('Jährlicher Geburtstag'),
+276:                   // subtitle: const Text(
+277:                   //   'Der Termin wird jedes Jahr wiederholt.',
+278:                   // ),
+279:                   value: _isBirthday,
+280:                   onChanged: (bool value) {
+281:                     setState(() {
+282:                       _isBirthday = value;
+283:                       if (value) {
+284:                         _selectedColor = AppColors.birthdayColor;
+285:                       } else {
+286:                         _selectedColor = AppColors.defaultEventColor;
+287:                       }
+288:                     });
+289:                   },
+290:                 ),
+291:                 const SizedBox(height: 16),
+292:                 // Datum- und Uhrzeitauswahl
+293:                 Row(
+294:                   children: [
+295:                     Expanded(
+296:                       child: TextButton.icon(
+297:                         icon: const Icon(Icons.calendar_today, size: 24),
+298:                         label: Text(
+299:                           DateFormat.yMd('de_DE').format(_selectedDate),
+300:                           style: const TextStyle(fontSize: 17),
+301:                         ),
+302:                         onPressed: _selectDate,
+303:                       ),
+304:                     ),
+305:                     const SizedBox(width: 12),
+306:                     if (!_isBirthday)
+307:                       Expanded(
+308:                         child: TextButton.icon(
+309:                           icon: const Icon(Icons.access_time, size: 24),
+310:                           label: Text(
+311:                             _selectedTime.format(context),
+312:                             style: const TextStyle(fontSize: 17),
+313:                           ),
+314:                           onPressed: _selectTime,
+315:                         ),
+316:                       ),
+317:                   ],
+318:                 ),
+319:                 const SizedBox(height: 24),
+320:                 // Farbauswahl
+321:                 _buildColorPicker(),
+322:                 const SizedBox(height: 30),
+323:                 Center(
+324:                   child: ElevatedButton(
+325:                     style: ElevatedButton.styleFrom(
+326:                       minimumSize: const Size(double.infinity, 50),
+327:                     ),
+328:                     onPressed: () {
+329:                       if (_formKey.currentState!.validate()) {
+330:                         final eventTime = _isBirthday
+331:                             ? const TimeOfDay(hour: 0, minute: 0)
+332:                             : _selectedTime;
+333: 
+334:                         final eventDateTime = DateTime(
+335:                           _selectedDate.year,
+336:                           _selectedDate.month,
+337:                           _selectedDate.day,
+338:                           eventTime.hour,
+339:                           eventTime.minute,
+340:                         );
+341: 
+342:                         final String eventId =
+343:                             widget.eventToEdit?.id ?? _uuid.v4();
+344: 
+345:                         final finalEvent = Event(
+346:                           id: eventId,
+347:                           title: _titleController.text,
+348:                           description: _descController.text.isEmpty
+349:                               ? null
+350:                               : _descController.text,
+351:                           date: eventDateTime,
+352:                           color: _selectedColor,
+353:                           isBirthday: _isBirthday,
+354:                         );
+355:                         // Benachrichtigung planen
+356:                         DateTime notificationDate = finalEvent.date;
+357:                         if (finalEvent.isBirthday) {
+358:                           final now = DateTime.now();
+359:                           DateTime nextBirthday = DateTime(
+360:                             now.year,
+361:                             finalEvent.date.month,
+362:                             finalEvent.date.day,
+363:                           );
+364:                           if (nextBirthday.isBefore(now)) {
+365:                             nextBirthday = DateTime(
+366:                               now.year + 1,
+367:                               finalEvent.date.month,
+368:                               finalEvent.date.day,
+369:                             );
+370:                           }
+371:                           notificationDate = nextBirthday;
+372:                         }
+373: 
+374:                         final int notificationId = eventId.hashCode;
+375: 
+376:                         // Vorherige Benachrichtigung löschen (falls vorhanden)
+377:                         NotificationService().scheduleReminders(
+378:                           notificationId,
+379:                           finalEvent.title,
+380:                           notificationDate,
+381:                         );
+382: 
+383:                         if (!mounted) return;
+384:                         // Zurück zur vorherigen Seite mit dem neuen/aktualisierten Termin
+385:                         Navigator.of(context).pop(finalEvent);
+386:                       }
+387:                     },
+388:                     child: const Text(
+389:                       'Speichern',
+390:                       style: TextStyle(
+391:                         fontSize: 17,
+392:                         fontWeight: FontWeight.bold,
+393:                       ),
+394:                     ),
+395:                   ),
+396:                 ),
+397:               ],
+398:             ),
+399:           ),
+400:         ),
+401:       ),
+402:     );
+403:   }
+404: }
+405: 
+
+// ==== lib\screens\calendar_screen.dart ====
+  1: // lib/screens/calendar_screen.dart
+  2: 
+  3: import 'dart:async';
+  4: import 'package:flutter/material.dart';
+  5: import 'package:syncfusion_flutter_calendar/calendar.dart';
+  6: import 'package:ukalender2/calendar/event_data_source.dart';
+  7: import '../models/event.dart';
+  8: import '../services/holiday_service.dart';
+  9: import '../screens/add_event_screen.dart';
+ 10: import '../services/storage_service.dart';
+ 11: import '../services/calendar_service.dart';
+ 12: import '../screens/settings_screen.dart';
+ 13: import '../services/notification_service.dart';
+ 14: import '../utils/app_colors.dart';
+ 15: import '../services/share_intent_service.dart';
+ 16: import '../features/event_import_export/event_importer.dart';
+ 17: import '../features/event_import_export/event_exporter.dart';
+ 18: import '../features/event_import_export/event_backup_restorer.dart';
+ 19: import 'package:ukalender2/screens/event_list_screen.dart';
+ 20: import '../features/event_import_export/backup_restore_dialogs.dart';
+ 21: import '../widgets/calendar_app_bar.dart';
+ 22: import '../widgets/calendar_main_body.dart';
+ 23: 
+ 24: /// Main-Screen, der den Kalender und die Terminverwaltung anzeigt.
+ 25: class CalendarScreen extends StatefulWidget {
+ 26:   const CalendarScreen({super.key});
+ 27: 
+ 28:   @override
+ 29:   State<CalendarScreen> createState() => _CalendarScreenState();
+ 30: }
+ 31: 
+ 32: /// State-Klasse für den Kalenderbildschirm.
+ 33: class _CalendarScreenState extends State<CalendarScreen> {
+ 34:   List<Event> _userEvents = [];
+ 35:   List<Event> _holidays = [];
+ 36:   List<Event> _allEvents = [];
+ 37:   late EventDataSource _dataSource;
+ 38:   final DateTime _focusedDay = DateTime.now();
+ 39:   DateTime? _selectedDay;
+ 40:   late int _currentYear;
+ 41:   final HolidayService _holidayService = HolidayService();
+ 42:   final StorageService _storageService = StorageService();
+ 43:   final CalendarService _calendarService = CalendarService();
+ 44: 
+ 45:   late ShareIntentService _shareIntentService;
+ 46: 
+ 47:   late EventImporter _eventImporter;
+ 48:   late EventExporter _eventExporter;
+ 49:   late EventBackupRestorer _eventBackupRestorer;
+ 50: 
+ 51:   // CalendarController kommt aus dem Syncfusion Flutter Calendar Paket.
+ 52:   // _calendarController <- Instanz von CalendarController()
+ 53:   final CalendarController _calendarController = CalendarController();
+ 54: 
+ 55:   @override
+ 56:   void initState() {
+ 57:     super.initState();
+ 58:     _selectedDay = _focusedDay;
+ 59:     _currentYear = _focusedDay.year;
+ 60:     _dataSource = EventDataSource([]);
+ 61:     _loadInitialData();
+ 62: 
+ 63:     _shareIntentService = ShareIntentService(
+ 64:       calendarService: _calendarService,
+ 65:       storageService: _storageService,
+ 66:       showSnackBar: (snackBar) {
+ 67:         if (mounted) {
+ 68:           ScaffoldMessenger.of(context).showSnackBar(snackBar);
+ 69:         }
+ 70:       },
+ 71:       onEventsImported: _loadInitialData,
+ 72:     );
+ 73:     _shareIntentService.initReceiveSharing();
+ 74: 
+ 75:     _eventImporter = EventImporter(
+ 76:       calendarService: _calendarService,
+ 77:       storageService: _storageService,
+ 78:       onEventsImported: _loadInitialData,
+ 79:       showSnackBar: (snackBar) {
+ 80:         if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+ 81:       },
+ 82:     );
+ 83: 
+ 84:     _eventExporter = EventExporter(
+ 85:       calendarService: _calendarService,
+ 86:       showSnackBar: (snackBar) {
+ 87:         if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+ 88:       },
+ 89:     );
+ 90: 
+ 91:     _eventBackupRestorer = EventBackupRestorer(
+ 92:       calendarService: _calendarService,
+ 93:       storageService: _storageService,
+ 94:       onEventsRestored: _loadInitialData,
+ 95:       showSnackBar: (snackBar) {
+ 96:         if (mounted) ScaffoldMessenger.of(context).showSnackBar(snackBar);
+ 97:       },
+ 98:       showConfirmationDialog: (contentWidget) =>
+ 99:           showBackupRestoreConfirmationDialog(
+100:             context: context,
+101:             contentWidget: contentWidget,
+102:           ),
+103:     );
+104:   }
+105: 
+106:   @override
+107:   void dispose() {
+108:     _shareIntentService.dispose();
+109:     _calendarController.dispose();
+110:     super.dispose();
+111:   }
+112: 
+113:   Future<void> _loadInitialData() async {
+114:     _userEvents = await _storageService.loadEvents();
+115:     await _loadHolidaysForYear(_currentYear);
+116:   }
+117: 
+118:   Future<void> _loadHolidaysForYear(int year) async {
+119:     final stateCode = await _storageService.getSelectedState();
+120:     _holidays = await _holidayService.getHolidays(year, stateCode);
+121:     _rebuildEventListAndRefreshDataSource();
+122:   }
+123: 
+124:   void _rebuildEventListAndRefreshDataSource() {
+125:     setState(() {
+126:       final List<Event> displayEvents = [];
+127:       displayEvents.addAll(_userEvents.where((event) => !event.isBirthday));
+128: 
+129:       final birthdayEvents = _userEvents.where((event) => event.isBirthday);
+130:       for (final birthday in birthdayEvents) {
+131:         for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
+132:           final targetYear = _currentYear + yearOffset;
+133:           final birthdayInYear = DateTime(
+134:             targetYear,
+135:             birthday.date.month,
+136:             birthday.date.day,
+137:           );
+138:           displayEvents.add(birthday.copyWith(date: birthdayInYear));
+139:         }
+140:       }
+141: 
+142:       _allEvents = [...displayEvents, ..._holidays];
+143:       _dataSource = EventDataSource(_allEvents);
+144:       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
+145:     });
+146:   }
+147: 
+148:   void _onCalendarTapped(CalendarTapDetails details) {
+149:     setState(() {
+150:       _selectedDay = details.date;
+151:     });
+152:   }
+153: 
+154:   void _addEvent(Event event) {
+155:     _storageService.addEvent(event).then((_) {
+156:       if (!mounted) return;
+157:       _loadInitialData();
+158:     });
+159:   }
+160: 
+161:   void _deleteEvent(Event event) {
+162:     if (event.isHoliday) return;
+163:     final int notificationId = event.id.hashCode;
+164:     NotificationService().cancelReminders(notificationId);
+165:     _storageService.deleteEvent(event.id).then((_) {
+166:       if (!mounted) return;
+167:       _loadInitialData();
+168:     });
+169:   }
+170: 
+171:   void _updateEvent(Event oldEvent, Event newEvent) {
+172:     final int oldNotificationId = oldEvent.id.hashCode;
+173:     NotificationService().cancelReminders(oldNotificationId);
+174:     _storageService.updateEvent(newEvent).then((_) {
+175:       if (!mounted) return;
+176:       _loadInitialData();
+177:     });
+178:   }
+179: 
+180:   void _handleAppBarAction(String value) {
+181:     switch (value) {
+182:       case 'export_ics':
+183:         _exportEvents();
+184:         break;
+185:       case 'import_ics':
+186:         _importEvents();
+187:         break;
+188:       case 'backup_json':
+189:         _performBackup();
+190:         break;
+191:       case 'restore_json':
+192:         _performRestore();
+193:         break;
+194:     }
+195:   }
+196: 
+197:   void _importEvents() async {
+198:     await _eventImporter.importEvents();
+199:   }
+200: 
+201:   void _exportEvents() async {
+202:     await _eventExporter.exportEvents(_userEvents);
+203:   }
+204: 
+205:   void _performBackup() async {
+206:     await _eventBackupRestorer.createBackup(_userEvents);
+207:   }
+208: 
+209:   void _performRestore() async {
+210:     await _eventBackupRestorer.restoreBackup();
+211:   }
+212: 
+213:   void _openSettings() async {
+214:     final shouldReload = await Navigator.push<bool>(
+215:       context,
+216:       MaterialPageRoute(builder: (_) => const SettingsScreen()),
+217:     );
+218:     if (shouldReload == true) {
+219:       _loadHolidaysForYear(_currentYear);
+220:     }
+221:   }
+222: 
+223:   void _onCalendarViewChanged(ViewChangedDetails details) {
+224:     final newYear = details.visibleDates.first.year;
+225:     if (newYear != _currentYear) {
+226:       setState(() {
+227:         _currentYear = newYear;
+228:         _loadHolidaysForYear(newYear);
+229:       });
+230:     }
+231:   }
+232: 
+233:   @override
+234:   Widget build(BuildContext context) {
+235:     final colorScheme = Theme.of(context).colorScheme;
+236:     final Color startColor = Color.lerp(
+237:       colorScheme.surface,
+238:       colorScheme.primaryContainer,
+239:       0.3,
+240:     )!;
+241:     final Color endColor = colorScheme.surfaceContainerLow;
+242:     // Struktur des Kalender-Screens
+243:     return Scaffold(
+244:       // Benutzerdefinierte AppBar
+245:       // CalendarAppBar Widget (lib/widgets/calendar_app_bar.dart)
+246:       appBar: CalendarAppBar(
+247:         calendarController: _calendarController,
+248:         // Callback-Funktion (Bedienungen in der AppBar)
+249:         onListPressed: () {
+250:           // Terminliste aufrufen
+251:           Navigator.push(
+252:             context,
+253:             MaterialPageRoute(
+254:               builder: (context) => EventListScreen(
+255:                 // Liste mit den Events übergeben
+256:                 allEvents: _allEvents,
+257:                 // Events ab dem aktuellen Datum anzeigen
+258:                 initialSelectedDate: _selectedDay,
+259:               ),
+260:             ),
+261:           );
+262:         },
+263:         // Callback-Funktionen
+264:         onPreviousMonth: () => _calendarController.backward!(),
+265:         onNextMonth: () => _calendarController.forward!(),
+266:         onActionSelected: _handleAppBarAction,
+267:         onSettingsPressed: _openSettings,
+268:       ),
+269: 
+270:       extendBodyBehindAppBar: true,
+271: 
+272:       // Kalendergitter (lib/widgets/calendar_main_body.dart)
+273:       body: CalendarMainBody(
+274:         calendarController: _calendarController,
+275:         dataSource: _dataSource,
+276:         initialDisplayDate: _focusedDay,
+277:         selectedDay: _selectedDay,
+278:         // Callback-Funktion
+279:         onCalendarTapped: _onCalendarTapped,
+280:         userEvents: _userEvents,
+281:         onUpdateEvent: _updateEvent,
+282:         onDeleteEvent: _deleteEvent,
+283:         onViewChanged: _onCalendarViewChanged,
+284:         startColor: startColor,
+285:         endColor: endColor,
+286:         focusedDay: _focusedDay,
+287:       ),
+288: 
+289:       // Termine erstellen
+290:       floatingActionButton: FloatingActionButton(
+291:         backgroundColor: AppColors.floatingActionButton,
+292:         onPressed: () async {
+293:           final result = await Navigator.push<Event>(
+294:             context,
+295:             MaterialPageRoute(
+296:               builder: (_) =>
+297:                   AddEventScreen(selectedDate: _selectedDay ?? DateTime.now()),
+298:             ),
+299:           );
+300:           if (result != null) {
+301:             _addEvent(result);
+302:           }
+303:         },
+304:         child: const Icon(Icons.add),
+305:       ),
+306:     );
+307:   }
+308: }
+309: 
+
+// ==== lib\screens\color_scheme_preview_screen.dart ====
+ 1: // // lib/screens/color_scheme_preview_screen.dart
+ 2: 
+ 3: // import 'package:flutter/material.dart';
+ 4: 
+ 5: // class ColorSchemePreviewScreen extends StatelessWidget {
+ 6: //   const ColorSchemePreviewScreen({super.key});
+ 7: 
+ 8: //   @override
+ 9: //   Widget build(BuildContext context) {
+10: //     final scheme = Theme.of(context).colorScheme;
+11: 
+12: //     // Eine umfassende Liste aller Farben im ColorScheme
+13: //     final List<MapEntry<String, Color>> colorEntries = [
+14: //       MapEntry('primary', scheme.primary),
+15: //       MapEntry('onPrimary', scheme.onPrimary),
+16: //       MapEntry('primaryContainer', scheme.primaryContainer),
+17: //       MapEntry('onPrimaryContainer', scheme.onPrimaryContainer),
+18: //       MapEntry('secondary', scheme.secondary),
+19: //       MapEntry('onSecondary', scheme.onSecondary),
+20: //       MapEntry('secondaryContainer', scheme.secondaryContainer),
+21: //       MapEntry('onSecondaryContainer', scheme.onSecondaryContainer),
+22: //       MapEntry('tertiary', scheme.tertiary),
+23: //       MapEntry('onTertiary', scheme.onTertiary),
+24: //       MapEntry('tertiaryContainer', scheme.tertiaryContainer),
+25: //       MapEntry('onTertiaryContainer', scheme.onTertiaryContainer),
+26: //       MapEntry('error', scheme.error),
+27: //       MapEntry('onError', scheme.onError),
+28: //       MapEntry('errorContainer', scheme.errorContainer),
+29: //       MapEntry('onErrorContainer', scheme.onErrorContainer),
+30: //       MapEntry('surface', scheme.surface),
+31: //       MapEntry('onSurface', scheme.onSurface),
+32: //       MapEntry('surface', scheme.surface),
+33: //       MapEntry('onSurface', scheme.onSurface),
+34: //       MapEntry('surfaceContainerHighest', scheme.surfaceContainerHighest),
+35: //       MapEntry('onSurfaceVariant', scheme.onSurfaceVariant),
+36: //       MapEntry('outline', scheme.outline),
+37: //       MapEntry('outlineVariant', scheme.outlineVariant),
+38: //       MapEntry('inverseSurface', scheme.inverseSurface),
+39: //       MapEntry('onInverseSurface', scheme.onInverseSurface),
+40: //       MapEntry('inversePrimary', scheme.inversePrimary),
+41: //       MapEntry('surfaceTint', scheme.surfaceTint),
+42: //     ];
+43: 
+44: //     return Scaffold(
+45: //       appBar: AppBar(title: const Text("Vorschau: ColorScheme")),
+46: //       body: GridView.builder(
+47: //         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+48: //           crossAxisCount: 2, // 2 Spalten
+49: //           childAspectRatio: 2, // Breiter als hoch
+50: //         ),
+51: //         itemCount: colorEntries.length,
+52: //         itemBuilder: (context, index) {
+53: //           final entry = colorEntries[index];
+54: //           final colorName = entry.key;
+55: //           final colorValue = entry.value;
+56: 
+57: //           // Bestimmt, ob der Text hell oder dunkel sein sollte für beste Lesbarkeit
+58: //           final textColor =
+59: //               ThemeData.estimateBrightnessForColor(colorValue) ==
+60: //                   Brightness.dark
+61: //               ? Colors.white
+62: //               : Colors.black;
+63: 
+64: //           return Container(
+65: //             color: colorValue,
+66: //             margin: const EdgeInsets.all(2),
+67: //             padding: const EdgeInsets.all(8),
+68: //             child: Center(
+69: //               child: Text(
+70: //                 colorName,
+71: //                 textAlign: TextAlign.center,
+72: //                 style: TextStyle(
+73: //                   color: textColor,
+74: //                   fontWeight: FontWeight.bold,
+75: //                   shadows: [
+76: //                     Shadow(
+77: //                       blurRadius: 2.0,
+78: //                       color: textColor == Colors.white
+79: //                           ? Colors.black
+80: //                           : Colors.white,
+81: //                       offset: const Offset(1.0, 1.0),
+82: //                     ),
+83: //                   ],
+84: //                 ),
+85: //               ),
+86: //             ),
+87: //           );
+88: //         },
+89: //       ),
+90: //     );
+91: //   }
+92: // }
+93: 
+
+// ==== lib\screens\event_list_screen.dart ====
+  1: // lib/screens/event_list_screen.dart
+  2: 
+  3: import 'package:flutter/material.dart';
+  4: import 'package:flutter/services.dart';
+  5: import 'package:intl/intl.dart';
+  6: import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+  7: import '../models/event.dart';
+  8: import '../utils/app_colors.dart';
+  9: import '../utils/calendar_color_logic.dart';
+ 10: 
+ 11: /// Ein Screen, der eine chronologische Liste aller Kalenderereignisse anzeigt.
+ 12: class EventListScreen extends StatefulWidget {
+ 13:   final List<Event> allEvents;
+ 14:   final DateTime? initialSelectedDate;
+ 15: 
+ 16:   const EventListScreen({
+ 17:     super.key,
+ 18:     required this.allEvents,
+ 19:     this.initialSelectedDate,
+ 20:   });
+ 21: 
+ 22:   @override
+ 23:   State<EventListScreen> createState() => _EventListScreenState();
+ 24: }
+ 25: 
+ 26: class _EventListScreenState extends State<EventListScreen> {
+ 27:   final ItemScrollController _itemScrollController = ItemScrollController();
+ 28:   final ItemPositionsListener _itemPositionsListener =
+ 29:       ItemPositionsListener.create();
+ 30: 
+ 31:   late Map<DateTime, List<Event>> _groupedEvents;
+ 32:   late List<MapEntry<DateTime, List<Event>>> _sortedGroupedEntries;
+ 33: 
+ 34:   @override
+ 35:   void initState() {
+ 36:     super.initState();
+ 37:     // Events gruppieren und sortieren
+ 38:     _groupedEvents = _groupEventsByDate(widget.allEvents);
+ 39:     _groupedEvents.forEach((date, events) {
+ 40:       events.sort(
+ 41:         (a, b) => a.date.compareTo(b.date),
+ 42:       ); // Sortiere Events innerhalb eines Tages nach Uhrzeit
+ 43:     });
+ 44:     _sortedGroupedEntries = _groupedEvents.entries.toList();
+ 45: 
+ 46:     // Scrollen, sobald die Liste gerendert ist
+ 47:     _itemPositionsListener.itemPositions.addListener(_handleScroll);
+ 48:   }
+ 49: 
+ 50:   void _handleScroll() {
+ 51:     if (_itemScrollController.isAttached) {
+ 52:       _itemPositionsListener.itemPositions.removeListener(
+ 53:         _handleScroll,
+ 54:       ); // Listener entfernen, um Mehrfachausführung zu verhindern
+ 55:       _scrollToFirstUpcomingEvent();
+ 56:     }
+ 57:   }
+ 58: 
+ 59:   @override
+ 60:   void dispose() {
+ 61:     _itemPositionsListener.itemPositions.removeListener(
+ 62:       _handleScroll,
+ 63:     ); // Sicherstellen, dass der Listener entfernt wird
+ 64:     super.dispose();
+ 65:   }
+ 66: 
+ 67:   /// Gruppiert eine Liste von Events nach ihrem Datum (ohne Zeitkomponente).
+ 68:   Map<DateTime, List<Event>> _groupEventsByDate(List<Event> events) {
+ 69:     Map<DateTime, List<Event>> groupedEvents = {};
+ 70:     for (var event in events) {
+ 71:       // Datum normalisieren, um Zeitkomponente für die Gruppierung zu entfernen
+ 72:       DateTime dateOnly = DateTime(
+ 73:         event.date.year,
+ 74:         event.date.month,
+ 75:         event.date.day,
+ 76:       );
+ 77:       if (!groupedEvents.containsKey(dateOnly)) {
+ 78:         groupedEvents[dateOnly] = [];
+ 79:       }
+ 80:       groupedEvents[dateOnly]!.add(event);
+ 81:     }
+ 82:     // Schlüssel (Daten) chronologisch sortieren
+ 83:     final sortedKeys = groupedEvents.keys.toList()
+ 84:       ..sort((a, b) => a.compareTo(b));
+ 85:     return {for (var k in sortedKeys) k: groupedEvents[k]!};
+ 86:   }
+ 87: 
+ 88:   /// Scrollt die Liste zum ersten Eintrag, der am oder nach dem aktuellen Tag liegt.
+ 89:   void _scrollToFirstUpcomingEvent() {
+ 90:     if (_sortedGroupedEntries.isEmpty) {
+ 91:       debugPrint('EventListScreen: Liste leer, kein Scrollen möglich.');
+ 92:       return;
+ 93:     }
+ 94: 
+ 95:     final now = DateTime.now();
+ 96:     // Bestimme den aktuellen Tag ohne Zeitkomponente.
+ 97:     DateTime today = DateTime(now.year, now.month, now.day);
+ 98: 
+ 99:     debugPrint('EventListScreen: Aktuelles Datum (ohne Zeit): $today');
+100:     debugPrint(
+101:       'EventListScreen: Anzahl der gruppierten Termine: ${_sortedGroupedEntries.length}',
+102:     );
+103: 
+104:     int targetScrollIndex = 0; // Standardmäßig am Anfang der Liste bleiben
+105:     bool foundTarget = false;
+106: 
+107:     // Finde den Index des ersten Datumseintrags, der am oder nach 'today' liegt.
+108:     for (int i = 0; i < _sortedGroupedEntries.length; i++) {
+109:       final DateTime groupDate = _sortedGroupedEntries[i].key;
+110:       // Wir suchen das erste Event, das am oder nach dem heutigen Tag liegt.
+111:       if (groupDate.isAtSameMomentAs(today) || groupDate.isAfter(today)) {
+112:         targetScrollIndex = i;
+113:         foundTarget = true;
+114:         // debugPrint(
+115:         //   'EventListScreen: Ziel gefunden bei Index $i für Datum $groupDate',
+116:         // );
+117:         break;
+118:       }
+119:     }
+120: 
+121:     if (foundTarget) {
+122:       debugPrint(
+123:         'EventListScreen: final targetScrollIndex: $targetScrollIndex',
+124:       );
+125: 
+126:       if (_itemScrollController.isAttached) {
+127:         _itemScrollController.scrollTo(
+128:           index: targetScrollIndex,
+129:           duration: const Duration(milliseconds: 500),
+130:           curve: Curves.easeOut,
+131:           // Bringt das Element an den oberen Rand des Viewports
+132:           alignment: 0.0,
+133:         );
+134:         debugPrint(
+135:           'EventListScreen: Scrollen mit ItemScrollController eingeleitet.',
+136:         );
+137:       } else {
+138:         debugPrint(
+139:           'EventListScreen: ItemScrollController nicht bereit, kann nicht scrollen.',
+140:         );
+141:       }
+142:     } else {
+143:       debugPrint(
+144:         'EventListScreen: Kein Termin am heutigen Tag oder später gefunden. Liste bleibt am Anfang.',
+145:       );
+146:     }
+147:   }
+148: 
+149:   @override
+150:   Widget build(BuildContext context) {
+151:     return Scaffold(
+152:       appBar: AppBar(
+153:         title: const Text('Terminliste'),
+154:         backgroundColor: Colors.transparent,
+155:         elevation: 0,
+156:         systemOverlayStyle: const SystemUiOverlayStyle(
+157:           statusBarColor: Colors.transparent,
+158:           statusBarIconBrightness: Brightness.dark,
+159:           statusBarBrightness: Brightness.light,
+160:         ),
+161:       ),
+162:       extendBodyBehindAppBar: true,
+163:       body: Container(
+164:         decoration: BoxDecoration(
+165:           gradient: LinearGradient(
+166:             begin: Alignment.topCenter,
+167:             end: Alignment.bottomCenter,
+168:             colors: [
+169:               Theme.of(context).colorScheme.surfaceContainer,
+170:               Theme.of(context).colorScheme.surfaceContainerLow,
+171:             ],
+172:           ),
+173:         ),
+174:         padding: EdgeInsets.only(
+175:           top: kToolbarHeight + MediaQuery.of(context).padding.top,
+176:         ),
+177:         child: _sortedGroupedEntries.isEmpty
+178:             ? const Center(
+179:                 child: Text(
+180:                   'Keine Termine vorhanden.',
+181:                   style: TextStyle(fontSize: 18, color: AppColors.textPrimary),
+182:                 ),
+183:               )
+184:             : ScrollablePositionedList.builder(
+185:                 itemScrollController: _itemScrollController,
+186:                 itemPositionsListener: _itemPositionsListener,
+187:                 itemCount: _sortedGroupedEntries.length,
+188:                 itemBuilder: (context, index) {
+189:                   final date = _sortedGroupedEntries[index].key;
+190:                   final eventsForDate = _sortedGroupedEntries[index].value;
+191: 
+192:                   return Column(
+193:                     crossAxisAlignment: CrossAxisAlignment.start,
+194:                     children: [
+195:                       Padding(
+196:                         padding: const EdgeInsets.symmetric(
+197:                           horizontal: 16.0,
+198:                           vertical: 8.0,
+199:                         ),
+200:                         child: Text(
+201:                           '${DateFormat.EEEE('de_DE').format(date)}, ${DateFormat.yMMMMd('de_DE').format(date)}',
+202:                           style: Theme.of(context).textTheme.headlineSmall
+203:                               ?.copyWith(
+204:                                 color: Theme.of(context).colorScheme.primary,
+205:                                 fontWeight: FontWeight.bold,
+206:                                 fontSize: 18,
+207:                               ),
+208:                         ),
+209:                       ),
+210:                       ...eventsForDate.map((event) {
+211:                         final displayColor = CalendarColorLogic.getEventColor(
+212:                           event,
+213:                         );
+214:                         return Card(
+215:                           margin: const EdgeInsets.symmetric(
+216:                             horizontal: 16.0,
+217:                             vertical: 4.0,
+218:                           ),
+219:                           elevation: 1,
+220:                           child: Padding(
+221:                             padding: const EdgeInsets.all(12.0),
+222:                             child: Row(
+223:                               children: [
+224:                                 Container(
+225:                                   width: 5.0,
+226:                                   height:
+227:                                       event.description != null &&
+228:                                           event.description!.isNotEmpty
+229:                                       ? 70.0
+230:                                       : 50.0,
+231:                                   decoration: BoxDecoration(
+232:                                     color: displayColor,
+233:                                     borderRadius: BorderRadius.circular(2.5),
+234:                                   ),
+235:                                   margin: const EdgeInsets.only(right: 12.0),
+236:                                 ),
+237:                                 Expanded(
+238:                                   child: Column(
+239:                                     crossAxisAlignment:
+240:                                         CrossAxisAlignment.start,
+241:                                     children: [
+242:                                       Text(
+243:                                         event.isHoliday
+244:                                             ? 'Ganztägig (Feiertag)'
+245:                                             : (event.isBirthday
+246:                                                   ? 'Ganztägig (Geburtstag)'
+247:                                                   : DateFormat.Hm(
+248:                                                       'de_DE',
+249:                                                     ).format(event.date)),
+250:                                         style: const TextStyle(
+251:                                           fontWeight: FontWeight.bold,
+252:                                           fontSize: 15,
+253:                                           color: AppColors.textPrimary,
+254:                                         ),
+255:                                       ),
+256:                                       const SizedBox(height: 4),
+257:                                       Text(
+258:                                         event.title,
+259:                                         style: Theme.of(context)
+260:                                             .textTheme
+261:                                             .titleMedium
+262:                                             ?.copyWith(
+263:                                               fontWeight: FontWeight.bold,
+264:                                               color: AppColors.textPrimary,
+265:                                             ),
+266:                                         maxLines: 2,
+267:                                         overflow: TextOverflow.ellipsis,
+268:                                       ),
+269:                                       if (event.description != null &&
+270:                                           event.description!.isNotEmpty)
+271:                                         Text(
+272:                                           event.description!,
+273:                                           style: Theme.of(context)
+274:                                               .textTheme
+275:                                               .bodyMedium
+276:                                               ?.copyWith(color: AppColors.grey),
+277:                                           maxLines: 2,
+278:                                           overflow: TextOverflow.ellipsis,
+279:                                         ),
+280:                                     ],
+281:                                   ),
+282:                                 ),
+283:                               ],
+284:                             ),
+285:                           ),
+286:                         );
+287:                       }),
+288:                     ],
+289:                   );
+290:                 },
+291:               ),
+292:       ),
+293:     );
+294:   }
+295: }
+296: 
+
+// ==== lib\screens\settings_screen.dart ====
+  1: // lib/screens/settings_screen.dart
+  2: 
+  3: import 'package:flutter/material.dart';
+  4: import 'package:flutter/services.dart';
+  5: import 'package:package_info_plus/package_info_plus.dart';
+  6: import '../generated/build_info.dart';
+  7: import '../services/notification_service.dart';
+  8: import '../services/storage_service.dart';
+  9: 
+ 10: /// Screen für die Einstellungen der App.
+ 11: class SettingsScreen extends StatefulWidget {
+ 12:   const SettingsScreen({super.key});
+ 13: 
+ 14:   @override
+ 15:   State<SettingsScreen> createState() => _SettingsScreenState();
+ 16: }
+ 17: 
+ 18: /// State-Klasse für den SettingsScreen.
+ 19: class _SettingsScreenState extends State<SettingsScreen> {
+ 20:   final StorageService _storageService = StorageService();
+ 21:   String _selectedStateCode = 'NW';
+ 22:   PackageInfo _packageInfo = PackageInfo(
+ 23:     appName: 'Unknown',
+ 24:     packageName: 'Unknown',
+ 25:     version: 'Unknown',
+ 26:     buildNumber: 'Unknown',
+ 27:   );
+ 28: 
+ 29:   // Controller für die Textfelder der Erinnerungszeiten
+ 30:   late TextEditingController _reminder1Controller;
+ 31:   late TextEditingController _reminder2Controller;
+ 32: 
+ 33:   bool _isTestNotificationMode = false;
+ 34: 
+ 35:   // Deutsche Bundesländer und deren Codes
+ 36:   final Map<String, String> _germanStates = {
+ 37:     'NATIONAL': 'Bundesweit',
+ 38:     'BW': 'Baden-Württemberg',
+ 39:     'BY': 'Bayern',
+ 40:     'BE': 'Berlin',
+ 41:     'BB': 'Brandenburg',
+ 42:     'HB': 'Bremen',
+ 43:     'HH': 'Hamburg',
+ 44:     'HE': 'Hessen',
+ 45:     'MV': 'Mecklenburg-Vorpommern',
+ 46:     'NI': 'Niedersachsen',
+ 47:     'NW': 'Nordrhein-Westfalen',
+ 48:     'RP': 'Rheinland-Pfalz',
+ 49:     'SL': 'Saarland',
+ 50:     'SN': 'Sachsen',
+ 51:     'ST': 'Sachsen-Anhalt',
+ 52:     'SH': 'Schleswig-Holstein',
+ 53:     'TH': 'Thüringen',
+ 54:   };
+ 55: 
+ 56:   @override
+ 57:   void initState() {
+ 58:     super.initState();
+ 59:     _reminder1Controller = TextEditingController();
+ 60:     _reminder2Controller = TextEditingController();
+ 61:     _loadAllSettings();
+ 62:     _loadPackageInfo();
+ 63:   }
+ 64: 
+ 65:   @override
+ 66:   void dispose() {
+ 67:     _reminder1Controller.dispose();
+ 68:     _reminder2Controller.dispose();
+ 69:     super.dispose();
+ 70:   }
+ 71: 
+ 72:   /// Lädt alle gespeicherten Einstellungen und aktualisiert den State.
+ 73:   Future<void> _loadAllSettings() async {
+ 74:     final savedState = await _storageService.getSelectedState();
+ 75:     final reminderMinutes = await _storageService.getReminderMinutes();
+ 76:     final isTestMode = await _storageService.getIsTestNotification();
+ 77: 
+ 78:     if (mounted) {
+ 79:       setState(() {
+ 80:         _selectedStateCode = savedState;
+ 81:         _isTestNotificationMode = isTestMode;
+ 82: 
+ 83:         if (_isTestNotificationMode) {
+ 84:           _reminder1Controller.text = reminderMinutes['reminder1']!.toString();
+ 85:           _reminder2Controller.text = reminderMinutes['reminder2']!.toString();
+ 86:         } else {
+ 87:           _reminder1Controller.text = '1440';
+ 88:           _reminder2Controller.text = '60';
+ 89:         }
+ 90:       });
+ 91:     }
+ 92:   }
+ 93: 
+ 94:   /// Lädt die Paketinformationen der App.
+ 95:   Future<void> _loadPackageInfo() async {
+ 96:     final info = await PackageInfo.fromPlatform();
+ 97:     if (mounted) {
+ 98:       setState(() {
+ 99:         _packageInfo = info;
+100:       });
+101:     }
+102:   }
+103: 
+104:   /// Handler für die Auswahl eines Bundeslandes.
+105:   void _onStateSelected(String? newCode) {
+106:     if (newCode != null) {
+107:       setState(() {
+108:         _selectedStateCode = newCode;
+109:       });
+110:       _storageService.saveSelectedState(newCode);
+111:     }
+112:   }
+113: 
+114:   /// Speichert die Erinnerungszeiten, wenn der Testmodus aktiv ist.
+115:   void _saveReminderSettings() {
+116:     FocusScope.of(context).unfocus();
+117: 
+118:     if (_isTestNotificationMode) {
+119:       final reminder1 = int.tryParse(_reminder1Controller.text) ?? 0;
+120:       final reminder2 = int.tryParse(_reminder2Controller.text) ?? 0;
+121:       _storageService.saveReminderMinutes(reminder1, reminder2);
+122: 
+123:       ScaffoldMessenger.of(context).showSnackBar(
+124:         const SnackBar(
+125:           content: Text('Test-Erinnerungszeiten gespeichert.'),
+126:           duration: Duration(seconds: 2),
+127:         ),
+128:       );
+129:     }
+130:   }
+131: 
+132:   /// Baut den Titel für einen Abschnitt im Einstellungsbildschirm.
+133:   Widget _buildSectionTitle(BuildContext context, String title) {
+134:     return Padding(
+135:       padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 8.0),
+136:       child: Text(
+137:         title,
+138:         style: Theme.of(context).textTheme.titleMedium?.copyWith(
+139:           color: Theme.of(
+140:             context,
+141:           ).colorScheme.primary, // dunkles grün (#006C4E)
+142:           fontWeight: FontWeight.bold,
+143:           fontSize: 19,
+144:         ),
+145:       ),
+146:     );
+147:   }
+148: 
+149:   @override
+150:   Widget build(BuildContext context) {
+151:     final colorScheme = Theme.of(context).colorScheme;
+152: 
+153:     return Scaffold(
+154:       extendBodyBehindAppBar: true,
+155:       body: PopScope(
+156:         canPop: false,
+157:         onPopInvokedWithResult: (bool didPop, Object? result) {
+158:           if (didPop) return;
+159:           Navigator.of(context).pop(true);
+160:         },
+161:         // Der Hintergrund mit Farbverlauf
+162:         child: GestureDetector(
+163:           onTap: () => FocusScope.of(context).unfocus(),
+164:           child: Container(
+165:             decoration: BoxDecoration(
+166:               gradient: LinearGradient(
+167:                 begin: Alignment.topCenter,
+168:                 end: Alignment.bottomCenter,
+169:                 colors: [
+170:                   colorScheme.surfaceContainer,
+171:                   colorScheme.surfaceContainerLow,
+172:                 ],
+173:               ),
+174:             ),
+175:             // Der eigentliche Inhalt des Bildschirms
+176:             child: ListView(
+177:               children: [
+178:                 _buildSectionTitle(context, 'Über die App'),
+179:                 // 1. Karte mit App-Informationen.
+180:                 Card(
+181:                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
+182:                   child: Column(
+183:                     children: [
+184:                       ListTile(
+185:                         leading: const Icon(Icons.info_outline),
+186:                         title: const Text('App-Version'),
+187:                         subtitle: Text(
+188:                           '${_packageInfo.version}+${_packageInfo.buildNumber}',
+189:                         ),
+190:                       ),
+191:                       ListTile(
+192:                         leading: const Icon(Icons.build_circle_outlined),
+193:                         title: const Text('Build-Zeitpunkt'),
+194:                         subtitle: const Text(BuildInfo.buildTimestamp),
+195:                       ),
+196:                       Padding(
+197:                         padding: const EdgeInsets.only(bottom: 8.0),
+198:                         child: TextButton(
+199:                           onPressed: () {
+200:                             NotificationService().showTestNotification();
+201:                           },
+202:                           child: const Text('SOFORT-BENACHRICHTIGUNG TESTEN'),
+203:                         ),
+204:                       ),
+205:                     ],
+206:                   ),
+207:                 ),
+208:                 // Abschnitt für Benachrichtigungseinstellungen
+209:                 _buildSectionTitle(context, 'Benachrichtigungen'),
+210:                 // 2. Karte mit Benachrichtigungseinstellungen.
+211:                 Card(
+212:                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
+213:                   child: Padding(
+214:                     padding: const EdgeInsets.all(16.0),
+215:                     child: Column(
+216:                       crossAxisAlignment: CrossAxisAlignment.start,
+217:                       children: [
+218:                         Text(
+219:                           !_isTestNotificationMode
+220:                               ? 'Standardmodus: Erinnerungen erfolgen 24h und 1h vor einem Termin.'
+221:                               : 'Testmodus: Definieren Sie die Erinnerungszeiten in Minuten.',
+222:                         ),
+223:                         const SizedBox(height: 16),
+224:                         // Zwei Textfelder für die Erinnerungszeiten
+225:                         Row(
+226:                           children: [
+227:                             Expanded(
+228:                               child: TextField(
+229:                                 enabled: _isTestNotificationMode,
+230:                                 controller: _reminder1Controller,
+231:                                 decoration: const InputDecoration(
+232:                                   labelText: '1. Erinnerung (Min.)',
+233:                                   border: OutlineInputBorder(),
+234:                                 ),
+235:                                 keyboardType: TextInputType.number,
+236:                                 inputFormatters: [
+237:                                   FilteringTextInputFormatter.digitsOnly,
+238:                                 ],
+239:                               ),
+240:                             ),
+241:                             const SizedBox(width: 16),
+242:                             Expanded(
+243:                               child: TextField(
+244:                                 enabled: _isTestNotificationMode,
+245:                                 controller: _reminder2Controller,
+246:                                 decoration: const InputDecoration(
+247:                                   labelText: '2. Erinnerung (Min.)',
+248:                                   border: OutlineInputBorder(),
+249:                                 ),
+250:                                 keyboardType: TextInputType.number,
+251:                                 inputFormatters: [
+252:                                   FilteringTextInputFormatter.digitsOnly,
+253:                                 ],
+254:                               ),
+255:                             ),
+256:                           ],
+257:                         ),
+258:                         const SizedBox(height: 16),
+259:                         // Umschalter für den Testmodus
+260:                         Row(
+261:                           mainAxisAlignment: MainAxisAlignment.end,
+262:                           children: [
+263:                             const Text('Standard'),
+264:                             // Der Umschalter
+265:                             Switch(
+266:                               value: _isTestNotificationMode,
+267:                               onChanged: (value) {
+268:                                 setState(() {
+269:                                   _isTestNotificationMode = value;
+270:                                   if (value) {
+271:                                     _storageService.getReminderMinutes().then((
+272:                                       minutes,
+273:                                     ) {
+274:                                       _reminder1Controller.text =
+275:                                           minutes['reminder1']!.toString();
+276:                                       _reminder2Controller.text =
+277:                                           minutes['reminder2']!.toString();
+278:                                     });
+279:                                   } else {
+280:                                     _reminder1Controller.text = '1440';
+281:                                     _reminder2Controller.text = '60';
+282:                                   }
+283:                                 });
+284:                                 _storageService.saveIsTestNotification(value);
+285:                               },
+286:                             ),
+287:                             const Text('Test'),
+288:                             const Spacer(),
+289:                             ElevatedButton(
+290:                               onPressed: _isTestNotificationMode
+291:                                   ? _saveReminderSettings
+292:                                   : null,
+293:                               child: const Text('Speichern'),
+294:                             ),
+295:                           ],
+296:                         ),
+297:                       ],
+298:                     ),
+299:                   ),
+300:                 ),
+301:                 // Abschnitt für die Auswahl des Bundeslandes
+302:                 _buildSectionTitle(context, 'Feiertage'),
+303:                 // 3. Karte mit Auswahl der Bundesländer bezüglich der Feiertage.
+304:                 Card(
+305:                   margin: const EdgeInsets.symmetric(horizontal: 16.0),
+306:                   child: Padding(
+307:                     padding: const EdgeInsets.symmetric(
+308:                       horizontal: 16.0,
+309:                       vertical: 4.0,
+310:                     ),
+311:                     child: DropdownButton<String>(
+312:                       value: _selectedStateCode,
+313:                       onChanged: _onStateSelected,
+314:                       underline: const SizedBox(),
+315:                       isExpanded: true,
+316:                       items: _germanStates.entries.map((entry) {
+317:                         return DropdownMenuItem<String>(
+318:                           value: entry.key,
+319:                           child: Text(entry.value),
+320:                         );
+321:                       }).toList(),
+322:                     ),
+323:                   ),
+324:                 ),
+325:                 const SizedBox(height: 20), // Abstand am Ende
+326:               ],
+327:             ),
+328:           ),
+329:         ),
+330:       ),
+331:     );
+332:   }
+333: }
+334: 
+
+// ==== lib\services\calendar_service.dart ====
+  1: // lib/services/calendar_service.dart
+  2: 
+  3: import 'dart:io';
+  4: import 'dart:convert'; // Für JSON-Kodierung und -Dekodierung
+  5: import 'package:add_2_calendar/add_2_calendar.dart' as a2c;
+  6: import 'package:file_picker/file_picker.dart';
+  7: import 'package:path_provider/path_provider.dart';
+  8: import 'package:share_plus/share_plus.dart';
+  9: import 'package:icalendar_parser/icalendar_parser.dart' as ical_parser;
+ 10: import 'package:intl/intl.dart';
+ 11: import 'package:uuid/uuid.dart';
+ 12: import '../models/event.dart' as my_event;
+ 13: 
+ 14: /// Service-Klasse für Kalenderbezogene Funktionen wie Export, Import und Backup von Terminen.
+ 15: class CalendarService {
+ 16:   final Uuid _uuid = const Uuid();
+ 17: 
+ 18:   /// Fügt ein Ereignis zum Gerätekalender hinzu.
+ 19:   Future<void> addToDeviceCalendar(my_event.Event event) async {
+ 20:     final a2c.Event a2cEvent = a2c.Event(
+ 21:       title: event.title,
+ 22:       description: event.description ?? '',
+ 23:       startDate: event.date,
+ 24:       endDate: event.date.add(const Duration(hours: 1)),
+ 25:       allDay: event.isBirthday,
+ 26:     );
+ 27:     await a2c.Add2Calendar.addEvent2Cal(a2cEvent);
+ 28:   }
+ 29: 
+ 30:   /// Exportiert eine Liste von Ereignissen in eine .ics-Datei und teilt diese Datei.
+ 31:   Future<void> exportEvents(List<my_event.Event> events) async {
+ 32:     final StringBuffer icsContent = StringBuffer();
+ 33:     icsContent.writeln('BEGIN:VCALENDAR');
+ 34:     icsContent.writeln('VERSION:2.0');
+ 35:     icsContent.writeln('PRODID:-//My Flutter App//DE');
+ 36: 
+ 37:     String escapeText(String? text) {
+ 38:       if (text == null || text.isEmpty) return '';
+ 39:       return text.replaceAll('\n', '\\n');
+ 40:     }
+ 41: 
+ 42:     for (var event in events) {
+ 43:       if (event.isHoliday) continue;
+ 44:       final uid = event.id;
+ 45:       final title = escapeText(event.title);
+ 46:       final description = escapeText(event.description);
+ 47:       final dtstamp = DateFormat(
+ 48:         "yyyyMMdd'T'HHmmss'Z'",
+ 49:       ).format(DateTime.now().toUtc());
+ 50: 
+ 51:       icsContent.writeln('BEGIN:VEVENT');
+ 52:       icsContent.writeln('UID:$uid@meine.app');
+ 53:       icsContent.writeln('DTSTAMP:$dtstamp');
+ 54:       icsContent.writeln('SUMMARY:$title');
+ 55:       if (description.isNotEmpty) {
+ 56:         icsContent.writeln('DESCRIPTION:$description');
+ 57:       }
+ 58:       if (event.isBirthday) {
+ 59:         final date = event.date;
+ 60:         final nextDay = DateTime(
+ 61:           date.year,
+ 62:           date.month,
+ 63:           date.day,
+ 64:         ).add(const Duration(days: 1));
+ 65:         final dtstart = DateFormat('yyyyMMdd').format(date);
+ 66:         final dtend = DateFormat('yyyyMMdd').format(nextDay);
+ 67:         icsContent.writeln('DTSTART;VALUE=DATE:$dtstart');
+ 68:         icsContent.writeln('DTEND;VALUE=DATE:$dtend');
+ 69:         icsContent.writeln('RRULE:FREQ=YEARLY');
+ 70:       } else {
+ 71:         final dtstart = DateFormat(
+ 72:           "yyyyMMdd'T'HHmmss'Z'",
+ 73:         ).format(event.date.toUtc());
+ 74:         final dtend = DateFormat(
+ 75:           "yyyyMMdd'T'HHmmss'Z'",
+ 76:         ).format(event.date.add(const Duration(hours: 1)).toUtc());
+ 77:         icsContent.writeln('DTSTART:$dtstart');
+ 78:         icsContent.writeln('DTEND:$dtend');
+ 79:       }
+ 80:       icsContent.writeln('END:VEVENT');
+ 81:     }
+ 82:     icsContent.writeln('END:VCALENDAR');
+ 83: 
+ 84:     final directory = await getTemporaryDirectory();
+ 85:     final timestamp = DateFormat('yyMMdd-HHmm').format(DateTime.now());
+ 86:     final path = '${directory.path}/Termine_$timestamp.ics';
+ 87:     final file = File(path);
+ 88:     await file.writeAsString(icsContent.toString());
+ 89: 
+ 90:     await SharePlus.instance.share(
+ 91:       ShareParams(text: 'Hier sind deine Termine', files: [XFile(path)]),
+ 92:     );
+ 93:   }
+ 94: 
+ 95:   // ANGEPASST: Umbenannt, um den Zweck (File Picker) klarer zu machen.
+ 96:   /// Importiert Ereignisse aus einer vom Benutzer über den Datei-Picker ausgewählten .ics-Datei.
+ 97:   Future<List<my_event.Event>> importEventsFromPicker() async {
+ 98:     FilePickerResult? result = await FilePicker.platform.pickFiles(
+ 99:       type: FileType.any,
+100:     );
+101: 
+102:     if (result == null || result.files.single.path == null) {
+103:       return []; // Benutzer hat den Dialog abgebrochen
+104:     }
+105: 
+106:     final path = result.files.single.path!;
+107: 
+108:     // Ruft die neue, wiederverwendbare Methode zur Verarbeitung der Datei auf.
+109:     return parseIcsFile(path);
+110:   }
+111: 
+112:   // NEU: Die gesamte Parsing-Logik wurde in diese wiederverwendbare Methode ausgelagert.
+113:   /// Parst eine .ics-Datei vom gegebenen Pfad und gibt eine Liste von Events zurück.
+114:   /// Diese Methode wird sowohl vom File Picker als auch vom Share Handler verwendet.
+115:   Future<List<my_event.Event>> parseIcsFile(String path) async {
+116:     // Überprüfen, ob es sich um eine .ics-Datei handelt.
+117:     if (!path.toLowerCase().endsWith('.ics')) {
+118:       //print('CalendarService [ERROR]: Datei ist keine .ics-Datei: $path');
+119:       return [];
+120:     }
+121: 
+122:     final file = File(path);
+123:     final List<my_event.Event> importedEvents = [];
+124: 
+125:     try {
+126:       if (!await file.exists()) {
+127:         //print('CalendarService [ERROR]: Datei existiert nicht am Pfad: $path');
+128:         return [];
+129:       }
+130: 
+131:       final icsString = await file.readAsString();
+132:       final iCalendar = ical_parser.ICalendar.fromString(icsString);
+133: 
+134:       if (iCalendar.data.isEmpty) {
+135:         // print(
+136:         //   'CalendarService [WARN]: ICS-Datei ist gültig, enthält aber keine Termine.',
+137:         // );
+138:         return [];
+139:       }
+140: 
+141:       for (var data in iCalendar.data) {
+142:         try {
+143:           if (!data.containsKey('dtstart')) {
+144:             continue; // Ungültiger Eintrag ohne Startdatum
+145:           }
+146:           final ical_parser.IcsDateTime? icsDate = data['dtstart'];
+147:           final DateTime? startDate = icsDate?.toDateTime();
+148:           if (startDate == null) {
+149:             continue; // Ungültiges Startdatum
+150:           }
+151:           final bool isYearly =
+152:               data['rrule']?.toString().contains('FREQ=YEARLY') ?? false;
+153: 
+154:           importedEvents.add(
+155:             my_event.Event(
+156:               id: data['uid']?.toString() ?? _uuid.v4(),
+157:               title: data['summary']?.toString() ?? '(Ohne Titel)',
+158:               description: data['description']?.toString() ?? '',
+159:               date: startDate.toLocal(),
+160:               isBirthday: isYearly,
+161:             ),
+162:           );
+163:         } catch (e) {
+164:           // print(
+165:           //   'CalendarService [WARN]: Überspringe fehlerhaften Eintrag im ICS: $e',
+166:           // );
+167:           continue;
+168:         }
+169:       }
+170:       // print(
+171:       //   'CalendarService [SUCCESS]: ${importedEvents.length} Termin(e) erfolgreich geparst.',
+172:       // );
+173:       return importedEvents;
+174:     } catch (e) {
+175:       // print(
+176:       //   'CalendarService [CRITICAL ERROR]: Fehler beim Parsen der ICS-Datei: $e',
+177:       // );
+178:       return [];
+179:     }
+180:   }
+181: 
+182:   /// Erstellt ein vollständiges, app-internes Backup aller User-Termine in einer JSON-Datei.
+183:   Future<void> createInternalBackup(List<my_event.Event> events) async {
+184:     if (events.isEmpty) {
+185:       return;
+186:     }
+187:     final List<Map<String, dynamic>> jsonList = events
+188:         .map((event) => event.toJson())
+189:         .toList();
+190:     const jsonEncoder = JsonEncoder.withIndent('  ');
+191:     final jsonString = jsonEncoder.convert(jsonList);
+192:     final directory = await getTemporaryDirectory();
+193:     final timestamp = DateFormat('yyMMdd-HHmm').format(DateTime.now());
+194:     final path = '${directory.path}/kalender_backup_$timestamp.json';
+195:     final file = File(path);
+196:     await file.writeAsString(jsonString);
+197:     await SharePlus.instance.share(
+198:       ShareParams(text: 'Mein Kalender-Backup', files: [XFile(path)]),
+199:     );
+200:   }
+201: 
+202:   /// Stellt Termine aus einer app-internen JSON-Backup-Datei wieder her.
+203:   Future<List<my_event.Event>> restoreFromInternalBackup() async {
+204:     FilePickerResult? result = await FilePicker.platform.pickFiles(
+205:       type: FileType.custom,
+206:       allowedExtensions: ['json'],
+207:     );
+208:     if (result != null && result.files.single.path != null) {
+209:       final path = result.files.single.path!;
+210:       final file = File(path);
+211:       try {
+212:         final jsonString = await file.readAsString();
+213:         final List<dynamic> jsonList = jsonDecode(jsonString);
+214:         final List<my_event.Event> restoredEvents = jsonList
+215:             .map(
+216:               (json) => my_event.Event.fromJson(json as Map<String, dynamic>),
+217:             )
+218:             .toList();
+219:         return restoredEvents;
+220:       } catch (e) {
+221:         return [];
+222:       }
+223:     }
+224:     return [];
+225:   }
+226: }
+227: 
+
+// ==== lib\services\database_helper.dart ====
+  1: // lib/services/database_helper.dart
+  2: 
+  3: import 'package:sqflite/sqflite.dart';
+  4: import 'package:path/path.dart';
+  5: import '../models/event.dart';
+  6: 
+  7: /// Singleton-Klasse für die Datenbankverwaltung
+  8: class DatabaseHelper {
+  9:   static final DatabaseHelper instance = DatabaseHelper._init();
+ 10:   static Database? _database;
+ 11: 
+ 12:   // Privater Konstruktor
+ 13:   DatabaseHelper._init();
+ 14: 
+ 15:   /// Zugriff auf die Datenbank
+ 16:   Future<Database> get database async {
+ 17:     if (_database != null) return _database!;
+ 18:     _database = await _initDB('events.db');
+ 19:     return _database!;
+ 20:   }
+ 21: 
+ 22:   /// Initialisierung der Datenbank
+ 23:   Future<Database> _initDB(String filePath) async {
+ 24:     final dbPath = await getDatabasesPath();
+ 25:     final path = join(dbPath, filePath);
+ 26: 
+ 27:     return await openDatabase(
+ 28:       path,
+ 29:       version: 2,
+ 30:       onCreate: _createDB,
+ 31:       onUpgrade: _onUpgrade,
+ 32:     );
+ 33:   }
+ 34: 
+ 35:   /// Erstellung der Datenbanktabellen
+ 36:   Future _createDB(Database db, int version) async {
+ 37:     const idType = 'TEXT PRIMARY KEY';
+ 38:     const textType = 'TEXT NOT NULL';
+ 39:     const textNullableType = 'TEXT NULL';
+ 40:     const integerType = 'INTEGER NOT NULL';
+ 41: 
+ 42:     await db.execute('''
+ 43:       CREATE TABLE events (
+ 44:       id $idType,
+ 45:       title $textType,
+ 46:       description $textNullableType,
+ 47:       date $textType,
+ 48:       isHoliday $integerType,
+ 49:       color $integerType,
+ 50:       isBirthday $integerType DEFAULT 0
+ 51:       )
+ 52:       ''');
+ 53:   }
+ 54: 
+ 55:   /// Datenbank-Upgrade-Logik
+ 56:   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+ 57:     if (oldVersion < 2) {
+ 58:       await db.execute(
+ 59:         'ALTER TABLE events ADD COLUMN isBirthday INTEGER NOT NULL DEFAULT 0',
+ 60:       );
+ 61:     }
+ 62:   }
+ 63: 
+ 64:   // Diese Methode fügt einen neuen Termin hinzu.
+ 65:   Future<void> insertEvent(Event event) async {
+ 66:     final db = await instance.database;
+ 67:     await db.insert(
+ 68:       'events',
+ 69:       event.toJson(),
+ 70:       conflictAlgorithm: ConflictAlgorithm.replace,
+ 71:     );
+ 72:   }
+ 73: 
+ 74:   /// Diese Methode aktualisiert einen bestehenden Termin.
+ 75:   Future<void> updateEvent(Event event) async {
+ 76:     final db = await instance.database;
+ 77:     await db.update(
+ 78:       'events',
+ 79:       event.toJson(),
+ 80:       where: 'id = ?',
+ 81:       whereArgs: [event.id],
+ 82:     );
+ 83:   }
+ 84: 
+ 85:   /// Diese Methode ruft alle Termine ab.
+ 86:   Future<List<Event>> getAllEvents() async {
+ 87:     final db = await instance.database;
+ 88:     final result = await db.query('events');
+ 89:     return result.map((json) => Event.fromJson(json)).toList();
+ 90:   }
+ 91: 
+ 92:   /// Diese Methode löscht einen Termin anhand seiner ID.
+ 93:   Future<void> deleteEvent(String id) async {
+ 94:     final db = await instance.database;
+ 95:     await db.delete('events', where: 'id = ?', whereArgs: [id]);
+ 96:   }
+ 97: 
+ 98:   /// Diese Methode löscht alle Termine.
+ 99:   Future<void> deleteAllEvents() async {
+100:     final db = await instance.database;
+101:     await db.delete('events');
+102:   }
+103: }
+104: 
+
+// ==== lib\services\holiday_service.dart ====
+ 1: // lib/services/holiday_service.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'dart:convert';
+ 5: import 'package:http/http.dart' as http;
+ 6: import 'package:uuid/uuid.dart';
+ 7: import '../models/event.dart';
+ 8: 
+ 9: /// Dieser Service ist dafür zuständig, Feiertagsdaten von einer externen API abzurufen.
+10: class HolidayService {
+11:   final Uuid _uuid = const Uuid();
+12: 
+13:   /// Holt eine Liste von Feiertagen für ein bestimmtes Jahr und Bundesland.
+14:   Future<List<Event>> getHolidays(int year, String stateCode) async {
+15:     final url = Uri.parse(
+16:       'https://feiertage-api.de/api/?jahr=$year&nur_land=$stateCode',
+17:     );
+18: 
+19:     try {
+20:       final response = await http.get(url);
+21: 
+22:       // Überprüfen, ob die Anfrage erfolgreich war
+23:       if (response.statusCode == 200) {
+24:         final Map<String, dynamic> data = json.decode(response.body);
+25:         final List<Event> holidays = [];
+26:         data.forEach((key, value) {
+27:           holidays.add(
+28:             Event(
+29:               id: _uuid.v4(),
+30:               title: key,
+31:               date: DateTime.parse(value['datum']),
+32:               isHoliday: true,
+33:               color: Colors.green,
+34:             ),
+35:           );
+36:         });
+37:         return holidays;
+38:       } else {
+39:         return [];
+40:       }
+41:     } catch (e, s) {
+42:       debugPrint('Fehler beim Laden der Feiertage: $e');
+43:       debugPrint('StackTrace: $s');
+44:       return [];
+45:     }
+46:   }
+47: }
+48: 
+
+// ==== lib\services\notification_service.dart ====
+  1: // lib/services/notification_service.dart
+  2: 
+  3: import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+  4: import 'package:timezone/data/latest.dart' as tz;
+  5: import 'package:timezone/timezone.dart' as tz;
+  6: import '../services/storage_service.dart';
+  7: 
+  8: /// Service zur Verwaltung von lokalen Benachrichtigungen.
+  9: class NotificationService {
+ 10:   static final NotificationService _notificationService =
+ 11:       NotificationService._internal();
+ 12: 
+ 13:   factory NotificationService() {
+ 14:     return _notificationService;
+ 15:   }
+ 16: 
+ 17:   // Interner Konstruktor
+ 18:   NotificationService._internal();
+ 19: 
+ 20:   // Instanz des FlutterLocalNotificationsPlugin
+ 21:   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+ 22:       FlutterLocalNotificationsPlugin();
+ 23:   // Instanz des StorageService
+ 24:   final StorageService _storageService = StorageService();
+ 25: 
+ 26:   /// Initialisiert die Benachrichtigungsdienste.
+ 27:   Future<void> init() async {
+ 28:     const AndroidInitializationSettings initializationSettingsAndroid =
+ 29:         AndroidInitializationSettings('@mipmap/ic_launcher');
+ 30: 
+ 31:     const DarwinInitializationSettings initializationSettingsIOS =
+ 32:         DarwinInitializationSettings();
+ 33: 
+ 34:     const InitializationSettings initializationSettings =
+ 35:         InitializationSettings(
+ 36:           android: initializationSettingsAndroid,
+ 37:           iOS: initializationSettingsIOS,
+ 38:         );
+ 39: 
+ 40:     // Initialisiere Zeitzonen
+ 41:     tz.initializeTimeZones();
+ 42:     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+ 43:   }
+ 44: 
+ 45:   /// Fordert die notwendigen Berechtigungen für Benachrichtigungen an.
+ 46:   Future<void> requestPermissions() async {}
+ 47: 
+ 48:   /// Zeigt eine sofortige Test-Benachrichtigung an.
+ 49:   Future<void> showTestNotification() async {
+ 50:     const AndroidNotificationDetails androidDetails =
+ 51:         AndroidNotificationDetails(
+ 52:           'main_channel',
+ 53:           'Main Channel',
+ 54:           channelDescription: 'Main channel for notifications',
+ 55:           importance: Importance.max,
+ 56:           priority: Priority.high,
+ 57:         );
+ 58:     const NotificationDetails platformDetails = NotificationDetails(
+ 59:       android: androidDetails,
+ 60:     );
+ 61: 
+ 62:     await flutterLocalNotificationsPlugin.show(
+ 63:       99,
+ 64:       'Test Benachrichtigung',
+ 65:       'Wenn Sie das sehen, funktioniert der Kanal.',
+ 66:       platformDetails,
+ 67:     );
+ 68:   }
+ 69: 
+ 70:   /// Plant eine Benachrichtigung zu einem bestimmten Zeitpunkt.
+ 71:   Future<void> scheduleNotification(
+ 72:     int id,
+ 73:     String title,
+ 74:     String body,
+ 75:     DateTime scheduledTime,
+ 76:   ) async {
+ 77:     try {
+ 78:       await flutterLocalNotificationsPlugin.zonedSchedule(
+ 79:         id,
+ 80:         title,
+ 81:         body,
+ 82:         tz.TZDateTime.from(scheduledTime, tz.local),
+ 83:         const NotificationDetails(
+ 84:           android: AndroidNotificationDetails(
+ 85:             'main_channel',
+ 86:             'Main Channel',
+ 87:             channelDescription: 'Main channel for notifications',
+ 88:             importance: Importance.max,
+ 89:             priority: Priority.high,
+ 90:           ),
+ 91:         ),
+ 92:         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+ 93:         uiLocalNotificationDateInterpretation:
+ 94:             UILocalNotificationDateInterpretation.absoluteTime,
+ 95:       );
+ 96:     } catch (e) {
+ 97:       //print('Fehler beim Planen der Benachrichtigung: $e');
+ 98:     }
+ 99:   }
+100: 
+101:   /// Plant Erinnerungsbenachrichtigungen basierend auf den Einstellungen.
+102:   Future<void> scheduleReminders(
+103:     int baseId,
+104:     String title,
+105:     DateTime eventTime,
+106:   ) async {
+107:     // Prüfen, welcher Benachrichtigungsmodus (Standard oder Test) aktiv ist.
+108:     final isTestMode = await _storageService.getIsTestNotification();
+109:     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+110: 
+111:     int reminder1Minutes;
+112:     int reminder2Minutes;
+113: 
+114:     // Im Testmodus werden die benutzerdefinierten Werte aus den Einstellungen verwendet.
+115:     if (isTestMode) {
+116:       final reminderSettings = await _storageService.getReminderMinutes();
+117:       reminder1Minutes = reminderSettings['reminder1']!;
+118:       reminder2Minutes = reminderSettings['reminder2']!;
+119:     } else {
+120:       // Im Standardmodus werden die festen Werte (24h / 1h) verwendet.
+121:       reminder1Minutes = 1440; // 24 * 60
+122:       reminder2Minutes = 60;
+123:     }
+124: 
+125:     // Planen der 1. Benachrichtigung
+126:     if (reminder1Minutes > 0) {
+127:       final reminder1Time = eventTime.subtract(
+128:         Duration(minutes: reminder1Minutes),
+129:       );
+130:       if (reminder1Time.isAfter(now)) {
+131:         await scheduleNotification(
+132:           baseId,
+133:           'Erinnerung: $title',
+134:           'Ihr Termin beginnt in $reminder1Minutes Minuten.',
+135:           reminder1Time,
+136:         );
+137:       } else {}
+138:     }
+139: 
+140:     // Planen der 2. Benachrichtigung
+141:     if (reminder2Minutes > 0) {
+142:       final reminder2Time = eventTime.subtract(
+143:         Duration(minutes: reminder2Minutes),
+144:       );
+145:       if (reminder2Time.isAfter(now)) {
+146:         await scheduleNotification(
+147:           baseId + 1,
+148:           'Erinnerung: $title',
+149:           'Ihr Termin beginnt in $reminder2Minutes Minuten.',
+150:           reminder2Time,
+151:         );
+152:       } else {}
+153:     }
+154:   }
+155: 
+156:   /// Löscht alle geplanten Erinnerungsbenachrichtigungen für einen Termin.
+157:   Future<void> cancelReminders(int baseId) async {
+158:     await flutterLocalNotificationsPlugin.cancel(baseId);
+159:     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
+160:   }
+161: }
+162: 
+
+// ==== lib\services\share_intent_service.dart ====
+  1: // lib/services/share_intent_service.dart
+  2: 
+  3: import 'dart:async';
+  4: import 'package:flutter/material.dart';
+  5: import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+  6: import '../models/event.dart';
+  7: import 'calendar_service.dart';
+  8: import 'storage_service.dart';
+  9: 
+ 10: /// Ein Typedef für einen Callback, der eine SnackBar anzeigt.
+ 11: /// Ersetzt den direkten Zugriff auf ScaffoldMessenger.of(context)
+ 12: /// und ermöglicht es dem Service, Nachrichten anzuzeigen, ohne den Context direkt zu halten.
+ 13: typedef ShowSnackBarCallback = void Function(SnackBar snackBar);
+ 14: 
+ 15: /// Service zur Verarbeitung von geteilten Inhalten (insbesondere ICS-Dateien).
+ 16: class ShareIntentService {
+ 17:   final CalendarService _calendarService;
+ 18:   final StorageService _storageService;
+ 19:   StreamSubscription? _intentDataStreamSubscription;
+ 20:   final ShowSnackBarCallback _showSnackBar;
+ 21:   final VoidCallback
+ 22:   _onEventsImported; // Callback, um den Kalender zu aktualisieren
+ 23: 
+ 24:   ShareIntentService({
+ 25:     required CalendarService calendarService,
+ 26:     required StorageService storageService,
+ 27:     required ShowSnackBarCallback showSnackBar,
+ 28:     required VoidCallback onEventsImported,
+ 29:   }) : _calendarService = calendarService,
+ 30:        _storageService = storageService,
+ 31:        _showSnackBar = showSnackBar,
+ 32:        _onEventsImported = onEventsImported;
+ 33: 
+ 34:   /// Initialisiert den Listener für geteilte Inhalte mit receive_sharing_intent.
+ 35:   void initReceiveSharing() {
+ 36:     _intentDataStreamSubscription = ReceiveSharingIntent.instance
+ 37:         .getMediaStream()
+ 38:         .listen(
+ 39:           (List<SharedMediaFile> value) {
+ 40:             if (value.isNotEmpty) {
+ 41:               _handleSharedIcsFile(value.first);
+ 42:             }
+ 43:           },
+ 44:           onError: (err) {
+ 45:             // Optional: Fehlerprotokollierung
+ 46:             debugPrint(
+ 47:               "ReceiveSharingIntent [ERROR]: Fehler im Media-Stream: $err",
+ 48:             );
+ 49:           },
+ 50:         );
+ 51: 
+ 52:     ReceiveSharingIntent.instance.getInitialMedia().then((
+ 53:       List<SharedMediaFile> value,
+ 54:     ) {
+ 55:       if (value.isNotEmpty) {
+ 56:         _handleSharedIcsFile(value.first);
+ 57:       }
+ 58:     });
+ 59:   }
+ 60: 
+ 61:   /// Verarbeitet eine geteilte ICS-Datei von receive_sharing_intent.
+ 62:   Future<void> _handleSharedIcsFile(SharedMediaFile file) async {
+ 63:     if (file.path.toLowerCase().endsWith('.ics')) {
+ 64:       final String path = file.path;
+ 65: 
+ 66:       _showSnackBar(
+ 67:         const SnackBar(content: Text('Importiere geteilte Termine...')),
+ 68:       );
+ 69: 
+ 70:       final List<Event> importedEvents = await _calendarService.parseIcsFile(
+ 71:         path,
+ 72:       );
+ 73: 
+ 74:       if (importedEvents.isNotEmpty) {
+ 75:         for (final event in importedEvents) {
+ 76:           await _storageService.addEvent(event);
+ 77:         }
+ 78:         _onEventsImported(); // Benachrichtigt den CalendarScreen, die Daten neu zu laden
+ 79: 
+ 80:         _showSnackBar(
+ 81:           SnackBar(
+ 82:             content: Text(
+ 83:               '${importedEvents.length} Termin(e) erfolgreich importiert.',
+ 84:             ),
+ 85:           ),
+ 86:         );
+ 87:       } else {
+ 88:         _showSnackBar(
+ 89:           const SnackBar(
+ 90:             content: Text(
+ 91:               'Import fehlgeschlagen oder keine Termine in der Datei gefunden.',
+ 92:             ),
+ 93:           ),
+ 94:         );
+ 95:       }
+ 96:     } else {
+ 97:       debugPrint(
+ 98:         "ReceiveSharingIntent: Geteilte Datei ist keine .ics-Datei: ${file.path}",
+ 99:       );
+100:     }
+101:   }
+102: 
+103:   /// Beendet das Stream-Abonnement.
+104:   void dispose() {
+105:     _intentDataStreamSubscription?.cancel();
+106:   }
+107: }
+108: 
+
+// ==== lib\services\storage_service.dart ====
+ 1: // lib/services/storage_service.dart
+ 2: 
+ 3: import 'package:shared_preferences/shared_preferences.dart';
+ 4: import '../models/event.dart';
+ 5: import '../services/database_helper.dart';
+ 6: 
+ 7: /// Dienst zur Verwaltung der Ereignisspeicherung und Benutzereinstellungen.
+ 8: class StorageService {
+ 9:   final dbHelper = DatabaseHelper.instance;
+10: 
+11:   /// Lädt alle Ereignisse aus der lokalen Datenbank.
+12:   Future<List<Event>> loadEvents() async {
+13:     return await dbHelper.getAllEvents();
+14:   }
+15: 
+16:   /// Fügt ein neues Ereignis zur lokalen Datenbank hinzu.
+17:   Future<void> addEvent(Event event) async {
+18:     await dbHelper.insertEvent(event);
+19:   }
+20: 
+21:   /// Aktualisiert ein bestehendes Ereignis in der lokalen Datenbank.
+22:   Future<void> updateEvent(Event event) async {
+23:     await dbHelper.updateEvent(event);
+24:   }
+25: 
+26:   /// Löscht ein Ereignis aus der lokalen Datenbank anhand seiner ID.
+27:   Future<void> deleteEvent(String id) async {
+28:     await dbHelper.deleteEvent(id);
+29:   }
+30: 
+31:   static const _stateCodeKey = 'user_state_code';
+32:   static const _reminder1MinutesKey = 'reminder_1_minutes';
+33:   static const _reminder2MinutesKey = 'reminder_2_minutes';
+34:   static const _isTestNotificationKey = 'is_test_notification';
+35: 
+36:   /// Speichert, ob Testbenachrichtigungen aktiviert sind.
+37:   Future<void> saveIsTestNotification(bool isTest) async {
+38:     final prefs = await SharedPreferences.getInstance();
+39:     await prefs.setBool(_isTestNotificationKey, isTest);
+40:   }
+41: 
+42:   /// Liest, ob Testbenachrichtigungen aktiviert sind.
+43:   Future<bool> getIsTestNotification() async {
+44:     final prefs = await SharedPreferences.getInstance();
+45:     return prefs.getBool(_isTestNotificationKey) ?? false;
+46:   }
+47: 
+48:   /// Speichert den ausgewählten Bundeslandcode des Benutzers.
+49:   Future<void> saveSelectedState(String stateCode) async {
+50:     final prefs = await SharedPreferences.getInstance();
+51:     await prefs.setString(_stateCodeKey, stateCode);
+52:   }
+53: 
+54:   /// Liest den ausgewählten Bundeslandcode des Benutzers.
+55:   Future<String> getSelectedState() async {
+56:     final prefs = await SharedPreferences.getInstance();
+57:     return prefs.getString(_stateCodeKey) ?? 'NW';
+58:   }
+59: 
+60:   /// Speichert die Erinnerungszeiten in Minuten vor dem Ereignis.
+61:   Future<void> saveReminderMinutes(int reminder1, int reminder2) async {
+62:     final prefs = await SharedPreferences.getInstance();
+63:     await prefs.setInt(_reminder1MinutesKey, reminder1);
+64:     await prefs.setInt(_reminder2MinutesKey, reminder2);
+65:   }
+66: 
+67:   /// Liest die Erinnerungszeiten in Minuten vor dem Ereignis.
+68:   Future<Map<String, int>> getReminderMinutes() async {
+69:     final prefs = await SharedPreferences.getInstance();
+70:     return {
+71:       // 1. Erinnerung: 24 Stunden (1440 Minuten) vorher.
+72:       'reminder1': prefs.getInt(_reminder1MinutesKey) ?? 1440,
+73:       // 2. Erinnerung: 1 Stunde (60 Minuten) vorher.
+74:       'reminder2': prefs.getInt(_reminder2MinutesKey) ?? 60,
+75:     };
+76:   }
+77: 
+78:   /// Löscht alle Ereignisse aus der lokalen Datenbank.
+79:   Future<void> clearAllEvents() async {
+80:     await dbHelper.deleteAllEvents();
+81:   }
+82: }
+83: 
+
+// ==== lib\utils\app_colors.dart ====
+ 1: // lib/utils/app_colors.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: 
+ 5: /// Definiert eine Sammlung von Farben, die in der App verwendet werden.
+ 6: class AppColors {
+ 7:   // Grundfarben
+ 8:   static const Color orange = Color(0xFFFF5929); // HEX: #ff5929
+ 9:   static const Color green = Color(0xFF00854D); // HEX: #00854d
+10:   static const Color grey = Color(0xFF636363); // HEX: #636363
+11:   static const Color violet = Color(0xFFAB54B2); // HEX: #ab54b2
+12:   static const Color red = Color(0xFFDF0E07); // HEX: #df0e07
+13:   static const Color blue = Color(0xFF404DAD); // HEX: #404dad
+14:   static const Color lightBlue = Color(0xFF00A1EA); // HEX: #00a1ea
+15: 
+16:   // UI-Element Farben
+17:   static const Color floatingActionButton = Color.fromARGB(255, 131, 185, 201);
+18:   static const Color selectColorChoise = Colors.black;
+19:   static final Color deselectColorChoise = Colors.grey.shade400;
+20:   static final Color lableTextfield = Colors.grey.shade700;
+21:   static const Color deleteButton = Colors.red;
+22:   static const Color textPrimary = Colors.black87;
+23:   static const Color checkIcon = Colors.white;
+24:   static const Color dayNumberColor = Colors.white;
+25:   static const Color dayNumberInactive = Colors.black26;
+26:   static final Color calendarGridBorder = Colors.grey[300]!;
+27: 
+28:   static const Color destructiveActionColor = Colors.red;
+29:   // Wir speichern den Alpha-Wert als Integer (80% von 255 = 204).
+30:   // (Ursprunglich: color: eventColor.withAlpha(204),)
+31:   //static const int eventBackgroundAlpha = 204;
+32: 
+33:   // Abfrage im AddEventScreen
+34:   static const Color birthdayColor = violet;
+35:   static const Color defaultEventColor = lightBlue;
+36: 
+37:   /// Liste von Farben, die für Ereignisse verwendet werden können.
+38:   static const List<Color> eventColors = [
+39:     orange,
+40:     green,
+41:     grey,
+42:     violet,
+43:     red,
+44:     blue,
+45:     lightBlue,
+46:   ];
+47: 
+48:   // Kalender-spezifische Farben
+49:   static const Color pastEvent = Color(0xFF00854D);
+50:   static const Color holidayBackground = Color(
+51:     0x2600854D,
+52:   ); // green.withAlpha(38)
+53:   static const Color holidayText = Color(
+54:     0xFF004D2B,
+55:   ); // Etwas dunkleres rot für Text
+56:   static Color weekendDay = Colors.red.withAlpha(204);
+57: 
+58:   // UI-Element Farben
+59:   //static const Color floatingActionButton = Color.fromARGB(255, 131, 185, 201);
+60: }
+61: 
+
+// ==== lib\utils\calendar_color_logic.dart ====
+ 1: // lib/utils/calendar_color_logic.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import '../models/event.dart';
+ 5: import '../utils/app_colors.dart';
+ 6: 
+ 7: /// Logik zur Bestimmung der Farben von Kalenderereignissen.
+ 8: class CalendarColorLogic {
+ 9:   /// Bestimmt die Farbe eines Ereignisses basierend auf seinem Datum.
+10:   static Color getEventColor(Event event) {
+11:     // Feiertage behalten ihre definierte Farbe
+12:     if (event.isHoliday) {
+13:       return event.color;
+14:     }
+15: 
+16:     final DateTime now = DateTime.now();
+17:     final DateTime today = DateTime(now.year, now.month, now.day);
+18:     final DateTime eventDate = DateTime(
+19:       event.date.year,
+20:       event.date.month,
+21:       event.date.day,
+22:     );
+23: 
+24:     // Ereignisse in der Vergangenheit erhalten eine grüne Farbe
+25:     if (eventDate.isBefore(today)) {
+26:       return AppColors.pastEvent;
+27:     }
+28: 
+29:     return event.color;
+30:   }
+31: }
+32: 
+
+// ==== lib\widgets\calendar_app_bar.dart ====
+  1: // lib/widgets/calendar_app_bar.dart
+  2: 
+  3: import 'package:flutter/material.dart';
+  4: import 'package:flutter/services.dart';
+  5: import 'package:syncfusion_flutter_calendar/calendar.dart';
+  6: 
+  7: /// Funktionen der AppBar
+  8: class CalendarAppBar extends StatelessWidget implements PreferredSizeWidget {
+  9:   final VoidCallback onListPressed;
+ 10:   final VoidCallback onPreviousMonth;
+ 11:   final VoidCallback onNextMonth;
+ 12:   final Function(String) onActionSelected;
+ 13:   final VoidCallback onSettingsPressed;
+ 14:   final CalendarController
+ 15:   // Der Controller wird hier übergeben
+ 16:   calendarController;
+ 17: 
+ 18:   const CalendarAppBar({
+ 19:     super.key,
+ 20:     required this.onListPressed,
+ 21:     required this.onPreviousMonth,
+ 22:     required this.onNextMonth,
+ 23:     required this.onActionSelected,
+ 24:     required this.onSettingsPressed,
+ 25:     required this.calendarController,
+ 26:   });
+ 27: 
+ 28:   @override
+ 29:   Widget build(BuildContext context) {
+ 30:     return AppBar(
+ 31:       leading: IconButton(
+ 32:         icon: const Icon(Icons.list, size: 28.0),
+ 33:         tooltip: 'Terminliste anzeigen',
+ 34:         onPressed: onListPressed,
+ 35:       ),
+ 36:       backgroundColor: Colors.transparent,
+ 37:       systemOverlayStyle: const SystemUiOverlayStyle(
+ 38:         statusBarColor: Colors.transparent,
+ 39:         statusBarIconBrightness: Brightness.dark,
+ 40:         statusBarBrightness: Brightness.light,
+ 41:       ),
+ 42:       title: Row(
+ 43:         mainAxisSize: MainAxisSize.min,
+ 44:         children: [
+ 45:           IconButton(
+ 46:             icon: const Icon(Icons.arrow_back_ios, size: 23.0),
+ 47:             tooltip: 'Vorheriger Monat',
+ 48:             onPressed: () => calendarController.backward!(),
+ 49:           ),
+ 50:           const SizedBox(width: 35),
+ 51:           IconButton(
+ 52:             icon: const Icon(Icons.arrow_forward_ios, size: 23.0),
+ 53:             tooltip: 'Nächster Monat',
+ 54:             onPressed: () => calendarController.forward!(),
+ 55:           ),
+ 56:         ],
+ 57:       ),
+ 58:       centerTitle: true,
+ 59:       actions: [
+ 60:         PopupMenuButton<String>(
+ 61:           icon: const Icon(Icons.import_export, size: 30.0),
+ 62:           tooltip: 'Daten importieren/exportieren',
+ 63:           onSelected: onActionSelected,
+ 64:           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+ 65:             const PopupMenuItem<String>(
+ 66:               value: 'export_ics',
+ 67:               child: ListTile(
+ 68:                 leading: Icon(Icons.arrow_upward),
+ 69:                 title: Text(
+ 70:                   'Exportieren (.ics)',
+ 71:                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+ 72:                 ),
+ 73:               ),
+ 74:             ),
+ 75:             const PopupMenuItem<String>(
+ 76:               value: 'import_ics',
+ 77:               child: ListTile(
+ 78:                 leading: Icon(Icons.arrow_downward),
+ 79:                 title: Text(
+ 80:                   'Importieren (.ics)',
+ 81:                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+ 82:                 ),
+ 83:               ),
+ 84:             ),
+ 85:             const PopupMenuDivider(),
+ 86:             const PopupMenuItem<String>(
+ 87:               value: 'backup_json',
+ 88:               child: ListTile(
+ 89:                 leading: Icon(Icons.backup_outlined),
+ 90:                 title: Text(
+ 91:                   'Backup erstellen...',
+ 92:                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+ 93:                 ),
+ 94:               ),
+ 95:             ),
+ 96:             const PopupMenuItem<String>(
+ 97:               value: 'restore_json',
+ 98:               child: ListTile(
+ 99:                 leading: Icon(Icons.restore_page_outlined),
+100:                 title: Text(
+101:                   'Backup wiederherstellen...',
+102:                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+103:                 ),
+104:               ),
+105:             ),
+106:           ],
+107:         ),
+108:         IconButton(
+109:           icon: const Icon(Icons.settings, size: 26.0),
+110:           tooltip: 'Einstellungen',
+111:           onPressed: onSettingsPressed,
+112:         ),
+113:       ],
+114:     );
+115:   }
+116: 
+117:   @override
+118:   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+119: }
+120: 
+
+// ==== lib\widgets\calendar_main_body.dart ====
+ 1: // lib/screens/calendar_screen/widgets/calendar_main_body.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'package:syncfusion_flutter_calendar/calendar.dart';
+ 5: import 'package:ukalender2/calendar/event_data_source.dart';
+ 6: import 'package:ukalender2/models/event.dart';
+ 7: import 'package:ukalender2/widgets/calendar_month_cell.dart';
+ 8: 
+ 9: class CalendarMainBody extends StatelessWidget {
+10:   final CalendarController calendarController;
+11:   final EventDataSource dataSource;
+12:   final DateTime initialDisplayDate;
+13:   final DateTime? selectedDay;
+14:   final Function(CalendarTapDetails) onCalendarTapped;
+15:   final List<Event> userEvents;
+16:   final Function(Event oldEvent, Event newEvent) onUpdateEvent;
+17:   final Function(Event event) onDeleteEvent;
+18:   final Function(ViewChangedDetails) onViewChanged;
+19:   final Color startColor;
+20:   final Color endColor;
+21:   final DateTime focusedDay;
+22: 
+23:   const CalendarMainBody({
+24:     super.key,
+25:     required this.calendarController,
+26:     required this.dataSource,
+27:     required this.initialDisplayDate,
+28:     this.selectedDay,
+29:     required this.onCalendarTapped,
+30:     required this.userEvents,
+31:     required this.onUpdateEvent,
+32:     required this.onDeleteEvent,
+33:     required this.onViewChanged,
+34:     required this.startColor,
+35:     required this.endColor,
+36:     required this.focusedDay,
+37:   });
+38: 
+39:   @override
+40:   Widget build(BuildContext context) {
+41:     return Container(
+42:       decoration: BoxDecoration(
+43:         gradient: LinearGradient(
+44:           begin: Alignment.topCenter,
+45:           end: Alignment.bottomCenter,
+46:           colors: [startColor, endColor],
+47:         ),
+48:       ),
+49:       padding: EdgeInsets.only(
+50:         // Hier wird das Padding weiter angepasst, um den Kalenderinhalt anzuheben
+51:         // Experimentieren Sie mit diesem Wert, um den besten Abstand zu finden.
+52:         // Ein Wert von -45.0 ist ein Startpunkt, da kToolbarHeight etwa 56.0 ist.
+53:         top: MediaQuery.of(context).padding.top + kToolbarHeight - 70.0,
+54:       ),
+55:       child: SfCalendar(
+56:         controller: calendarController,
+57:         view: CalendarView.month,
+58:         dataSource: dataSource,
+59:         initialDisplayDate: initialDisplayDate,
+60:         initialSelectedDate: selectedDay,
+61:         onTap: onCalendarTapped,
+62:         firstDayOfWeek: 1,
+63:         // Reduziert die Höhe des integrierten Kalender-Headers
+64:         headerHeight: 40.0, // Standard ist 40.0. Dies verringert den Platz.
+65:         headerStyle: CalendarHeaderStyle(
+66:           textAlign: TextAlign.center,
+67:           backgroundColor: Colors.transparent,
+68:           textStyle: TextStyle(
+69:             fontSize: 18,
+70:             fontWeight: FontWeight.bold,
+71:             color: Theme.of(context).colorScheme.primary,
+72:           ),
+73:         ),
+74:         monthCellBuilder: (context, details) {
+75:           return CalendarMonthCell(
+76:             details: details,
+77:             focusedDay: focusedDay,
+78:             selectedDay: selectedDay,
+79:             userEvents: userEvents,
+80:             onUpdateEvent: onUpdateEvent,
+81:             onDeleteEvent: onDeleteEvent,
+82:           );
+83:         },
+84:         monthViewSettings: const MonthViewSettings(
+85:           appointmentDisplayMode: MonthAppointmentDisplayMode.none,
+86:           numberOfWeeksInView: 6,
+87:           showAgenda: false,
+88:         ),
+89:         onViewChanged: onViewChanged,
+90:       ),
+91:     );
+92:   }
+93: }
+94: 
+
+// ==== lib\widgets\calendar_month_cell.dart ====
+  1: // lib/widgets/calendar_month_cell
+  2: 
+  3: import 'package:flutter/material.dart';
+  4: import 'package:syncfusion_flutter_calendar/calendar.dart';
+  5: import '../models/event.dart';
+  6: import '../screens/add_event_screen.dart'; // Für AddEventScreen
+  7: import '../utils/app_colors.dart';
+  8: import '../utils/calendar_color_logic.dart';
+  9: 
+ 10: /// Ein Widget, das die Darstellung einer einzelnen Monatszelle im Kalender übernimmt.
+ 11: class CalendarMonthCell extends StatelessWidget {
+ 12:   final MonthCellDetails details;
+ 13:   final DateTime focusedDay; // Wird für isCurrentMonth benötigt
+ 14:   final DateTime? selectedDay; // Wird für isSelected benötigt
+ 15:   final List<Event>
+ 16:   userEvents; // Wird benötigt, um originalEvent für Tap zu finden
+ 17:   final Function(Event originalEvent, Event newEvent) onUpdateEvent;
+ 18:   final Function(Event eventToDelete) onDeleteEvent;
+ 19: 
+ 20:   const CalendarMonthCell({
+ 21:     super.key,
+ 22:     required this.details,
+ 23:     required this.focusedDay,
+ 24:     required this.selectedDay,
+ 25:     required this.userEvents,
+ 26:     required this.onUpdateEvent,
+ 27:     required this.onDeleteEvent,
+ 28:   });
+ 29: 
+ 30:   @override
+ 31:   Widget build(BuildContext context) {
+ 32:     final DateTime now = DateTime.now();
+ 33:     final bool isToday =
+ 34:         details.date.year == now.year &&
+ 35:         details.date.month == now.month &&
+ 36:         details.date.day == now.day;
+ 37:     final bool isHoliday = details.appointments.any(
+ 38:       (appointment) => (appointment as Event).isHoliday,
+ 39:     );
+ 40:     final bool isWeekend =
+ 41:         details.date.weekday == DateTime.saturday ||
+ 42:         details.date.weekday == DateTime.sunday;
+ 43:     final bool isCurrentMonth = details.date.month == focusedDay.month;
+ 44:     final bool isSelected =
+ 45:         selectedDay != null &&
+ 46:         selectedDay!.year == details.date.year &&
+ 47:         selectedDay!.month == details.date.month &&
+ 48:         selectedDay!.day == details.date.day;
+ 49: 
+ 50:     Color dayNumberColor;
+ 51:     if (isSelected) {
+ 52:       dayNumberColor = AppColors.dayNumberColor;
+ 53:     } else if (!isCurrentMonth) {
+ 54:       dayNumberColor = AppColors.dayNumberInactive;
+ 55:     } else if (isWeekend && !isHoliday) {
+ 56:       dayNumberColor = AppColors.weekendDay;
+ 57:     } else {
+ 58:       dayNumberColor = AppColors.textPrimary;
+ 59:     }
+ 60: 
+ 61:     return Container(
+ 62:       decoration: BoxDecoration(
+ 63:         color: isHoliday ? AppColors.holidayBackground : Colors.transparent,
+ 64:         border: Border(
+ 65:           top: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
+ 66:           left: BorderSide(color: AppColors.calendarGridBorder, width: 0.5),
+ 67:         ),
+ 68:       ),
+ 69:       padding: const EdgeInsets.all(2.0),
+ 70:       child: Column(
+ 71:         crossAxisAlignment: CrossAxisAlignment.stretch,
+ 72:         children: [
+ 73:           Container(
+ 74:             width: 24,
+ 75:             height: 24,
+ 76:             alignment: Alignment.center,
+ 77:             decoration: isSelected
+ 78:                 ? BoxDecoration(
+ 79:                     color: Theme.of(context).colorScheme.primary,
+ 80:                     shape: BoxShape.circle,
+ 81:                   )
+ 82:                 : isToday
+ 83:                 ? BoxDecoration(
+ 84:                     shape: BoxShape.rectangle,
+ 85:                     border: Border.all(
+ 86:                       color: Theme.of(context).colorScheme.tertiary,
+ 87:                       width: 2.0,
+ 88:                     ),
+ 89:                   )
+ 90:                 : null,
+ 91:             child: Text(
+ 92:               details.date.day.toString(),
+ 93:               style: TextStyle(color: dayNumberColor, fontSize: 14),
+ 94:             ),
+ 95:           ),
+ 96:           const SizedBox(height: 2),
+ 97:           Expanded(
+ 98:             child: SingleChildScrollView(
+ 99:               child: Column(
+100:                 crossAxisAlignment: CrossAxisAlignment.stretch,
+101:                 children: details.appointments.map((appointment) {
+102:                   final event = appointment as Event;
+103:                   if (event.isHoliday) {
+104:                     return Padding(
+105:                       padding: const EdgeInsets.only(top: 2.0),
+106:                       child: Text(
+107:                         event.title,
+108:                         overflow: TextOverflow.ellipsis,
+109:                         maxLines: 1,
+110:                         textAlign: TextAlign.center,
+111:                         style: TextStyle(
+112:                           color: AppColors.holidayText,
+113:                           fontSize: 10.0,
+114:                           fontWeight: FontWeight.w600,
+115:                         ),
+116:                       ),
+117:                     );
+118:                   }
+119: 
+120:                   final Color eventColor = CalendarColorLogic.getEventColor(
+121:                     event,
+122:                   );
+123:                   return GestureDetector(
+124:                     onTap: () async {
+125:                       // Hier suchen wir das Original-Event in der _userEvents-Liste
+126:                       // Wichtig: Verwende die übergebene userEvents Liste
+127:                       final Event originalEvent = userEvents.firstWhere(
+128:                         (e) => e.id == event.id,
+129:                         orElse: () =>
+130:                             event, // Fallback, sollte aber nicht passieren
+131:                       );
+132:                       final result = await Navigator.push<dynamic>(
+133:                         context,
+134:                         MaterialPageRoute(
+135:                           builder: (_) => AddEventScreen(
+136:                             selectedDate: originalEvent.date,
+137:                             eventToEdit: originalEvent,
+138:                           ),
+139:                         ),
+140:                       );
+141:                       if (result is Event) {
+142:                         onUpdateEvent(originalEvent, result);
+143:                       } else if (result is bool && result == true) {
+144:                         onDeleteEvent(originalEvent);
+145:                       }
+146:                     },
+147:                     child: Container(
+148:                       margin: const EdgeInsets.only(top: 2.0),
+149:                       padding: const EdgeInsets.symmetric(
+150:                         horizontal: 3.0,
+151:                         vertical: 2.0,
+152:                       ),
+153:                       decoration: BoxDecoration(
+154:                         color: eventColor.withAlpha(204),
+155:                         borderRadius: BorderRadius.circular(0),
+156:                       ),
+157:                       child: Text(
+158:                         event.title,
+159:                         overflow: TextOverflow.clip,
+160:                         softWrap: false,
+161:                         maxLines: 1,
+162:                         textAlign: TextAlign.left,
+163:                         style: const TextStyle(
+164:                           color: AppColors.dayNumberColor,
+165:                           fontSize: 12.2,
+166:                           fontWeight: FontWeight.bold,
+167:                         ),
+168:                       ),
+169:                     ),
+170:                   );
+171:                 }).toList(),
+172:               ),
+173:             ),
+174:           ),
+175:         ],
+176:       ),
+177:     );
+178:   }
+179: }
+180: 
+
+// ==== lib\main.dart ====
+ 1: // lib/main.dart
+ 2: 
+ 3: import 'package:flutter/material.dart';
+ 4: import 'package:flutter_localizations/flutter_localizations.dart';
+ 5: import 'package:intl/date_symbol_data_local.dart';
+ 6: import 'package:firebase_core/firebase_core.dart';
+ 7: import 'firebase_options.dart';
+ 8: import '../screens/calendar_screen.dart';
+ 9: import '../services/notification_service.dart';
+10: 
+11: void main() async {
+12:   WidgetsFlutterBinding.ensureInitialized();
+13: 
+14:   // Firebase initialisieren.
+15:   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+16:   await initializeDateFormatting('de_DE', null);
+17: 
+18:   // Benachrichtigungsdienst initialisieren und Berechtigungen anfragen.
+19:   await NotificationService().init();
+20:   await NotificationService().requestPermissions();
+21:   runApp(const MyApp());
+22: }
+23: 
+24: /// Hauptanwendungsklasse.
+25: class MyApp extends StatelessWidget {
+26:   const MyApp({super.key});
+27: 
+28:   @override
+29:   Widget build(BuildContext context) {
+30:     return MaterialApp(
+31:       debugShowCheckedModeBanner: false,
+32:       title: 'Flutter Terminkalender',
+33: 
+34:       // Standardfarben und Helligkeit festlegen.
+35:       theme: ThemeData(
+36:         useMaterial3: true,
+37:         // Hauptakzentfarbe der App definieren.
+38:         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF006C4E)),
+39: 
+40:         // Kartenstil anpassen (settings_screen.dart).
+41:         cardTheme: CardThemeData(
+42:           elevation: 1, // leichte Schattierung
+43:           shape: RoundedRectangleBorder(
+44:             borderRadius: BorderRadius.circular(12),
+45:           ),
+46:           color: ColorScheme.fromSeed(
+47:             seedColor: const Color(0xFF006C4E),
+48:             // Helle Farbe für den Kartenhintergrund (abgeleitet von der Akzentfarbe).
+49:           ).surfaceContainerHigh,
+50:         ),
+51:       ),
+52: 
+53:       // Stellt sprachspezifische Texte und Layouts für die Flutter-Widgets bereit.
+54:       localizationsDelegates: const [
+55:         // Texte, Labels und Fehlermeldungen erscheinen in der Sprache des Geräts.
+56:         GlobalMaterialLocalizations.delegate, // absolut notwendig!
+57:         // Automatische Richtungsunterstützung für Sprachen, die von rechts nach links gelesen werden.
+58:         GlobalWidgetsLocalizations.delegate,
+59:         // Labels in Cupertino-Komponenten werden in der korrekten Sprache angezeigt.
+60:         GlobalCupertinoLocalizations.delegate,
+61:       ],
+62: 
+63:       // Lokalisierungen und unterstützte Sprachen festlegen.
+64:       supportedLocales: const [Locale('de', 'DE'), Locale('en', 'US')],
+65:       locale: const Locale('de', 'DE'),
+66: 
+67:       // Startbildschirm der App festlegen.
+68:       home: const CalendarScreen(),
+69:     );
+70:   }
+71: }
+72: 
