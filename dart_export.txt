@@ -41,6 +41,7 @@ Verzeichnisstruktur des lib-Ordners:
 Dateiinhalte:
 
 // ==== lib\calendar\event_data_source.dart ====
+
  1: // lib/calendar/event_data_source
  2: 
  3: import 'package:flutter/material.dart';
@@ -94,6 +95,7 @@ Dateiinhalte:
 51: 
 
 // ==== lib\features\event_import_export\backup_restore_dialogs.dart ====
+
  1: // lib/features/event_import_export/backup_restore_dialogs.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -167,6 +169,7 @@ Dateiinhalte:
 71: 
 
 // ==== lib\features\event_import_export\event_backup_restorer.dart ====
+
  1: // lib/features/event_import_export/event_backup_restorer.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -249,6 +252,7 @@ Dateiinhalte:
 80: 
 
 // ==== lib\features\event_import_export\event_exporter.dart ====
+
  1: // lib/features/event_import_export/event_exporter.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -283,6 +287,7 @@ Dateiinhalte:
 32: 
 
 // ==== lib\features\event_import_export\event_importer.dart ====
+
  1: // lib/features/event_import_export/event_importer.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -334,9 +339,11 @@ Dateiinhalte:
 49: 
 
 // ==== lib\features\event_management\event_controller.dart ====
+
 1: 
 
 // ==== lib\models\event.dart ====
+
  1: // lib/models/event.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -424,6 +431,7 @@ Dateiinhalte:
 85: 
 
 // ==== lib\screens\add_event_screen.dart ====
+
   1: // lib/screens/add_event_screen.dart
   2: 
   3: import 'package:flutter/material.dart';
@@ -831,6 +839,7 @@ Dateiinhalte:
 405: 
 
 // ==== lib\screens\calendar_screen.dart ====
+
   1: // lib/screens/calendar_screen.dart
   2: 
   3: import 'dart:async';
@@ -1142,6 +1151,7 @@ Dateiinhalte:
 309: 
 
 // ==== lib\screens\color_scheme_preview_screen.dart ====
+
  1: // // lib/screens/color_scheme_preview_screen.dart
  2: 
  3: // import 'package:flutter/material.dart';
@@ -1237,6 +1247,7 @@ Dateiinhalte:
 93: 
 
 // ==== lib\screens\event_list_screen.dart ====
+
   1: // lib/screens/event_list_screen.dart
   2: 
   3: import 'package:flutter/material.dart';
@@ -1535,6 +1546,7 @@ Dateiinhalte:
 296: 
 
 // ==== lib\screens\settings_screen.dart ====
+
   1: // lib/screens/settings_screen.dart
   2: 
   3: import 'package:flutter/material.dart';
@@ -1871,6 +1883,7 @@ Dateiinhalte:
 334: 
 
 // ==== lib\services\calendar_service.dart ====
+
   1: // lib/services/calendar_service.dart
   2: 
   3: import 'dart:io';
@@ -2100,6 +2113,7 @@ Dateiinhalte:
 227: 
 
 // ==== lib\services\database_helper.dart ====
+
   1: // lib/services/database_helper.dart
   2: 
   3: import 'package:sqflite/sqflite.dart';
@@ -2206,6 +2220,7 @@ Dateiinhalte:
 104: 
 
 // ==== lib\services\holiday_service.dart ====
+
  1: // lib/services/holiday_service.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -2256,6 +2271,7 @@ Dateiinhalte:
 48: 
 
 // ==== lib\services\notification_service.dart ====
+
   1: // lib/services/notification_service.dart
   2: 
   3: import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -2420,6 +2436,7 @@ Dateiinhalte:
 162: 
 
 // ==== lib\services\share_intent_service.dart ====
+
   1: // lib/services/share_intent_service.dart
   2: 
   3: import 'dart:async';
@@ -2530,6 +2547,7 @@ Dateiinhalte:
 108: 
 
 // ==== lib\services\storage_service.dart ====
+
  1: // lib/services/storage_service.dart
  2: 
  3: import 'package:shared_preferences/shared_preferences.dart';
@@ -2615,6 +2633,7 @@ Dateiinhalte:
 83: 
 
 // ==== lib\utils\app_colors.dart ====
+
  1: // lib/utils/app_colors.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -2678,6 +2697,7 @@ Dateiinhalte:
 61: 
 
 // ==== lib\utils\calendar_color_logic.dart ====
+
  1: // lib/utils/calendar_color_logic.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -2712,6 +2732,7 @@ Dateiinhalte:
 32: 
 
 // ==== lib\widgets\calendar_app_bar.dart ====
+
   1: // lib/widgets/calendar_app_bar.dart
   2: 
   3: import 'package:flutter/material.dart';
@@ -2834,6 +2855,7 @@ Dateiinhalte:
 120: 
 
 // ==== lib\widgets\calendar_main_body.dart ====
+
  1: // lib/screens/calendar_screen/widgets/calendar_main_body.dart
  2: 
  3: import 'package:flutter/material.dart';
@@ -2930,6 +2952,7 @@ Dateiinhalte:
 94: 
 
 // ==== lib\widgets\calendar_month_cell.dart ====
+
   1: // lib/widgets/calendar_month_cell
   2: 
   3: import 'package:flutter/material.dart';
@@ -3112,6 +3135,7 @@ Dateiinhalte:
 180: 
 
 // ==== lib\main.dart ====
+
  1: // lib/main.dart
  2: 
  3: import 'package:flutter/material.dart';

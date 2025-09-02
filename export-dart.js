@@ -88,9 +88,10 @@ function processDirectory(dir) {
             const fileContent = fs.readFileSync(fullPath, 'utf8');
             const numberedContent = addLineNumbers(fileContent);
 
-            content += `\n// ==== ${relativePath} ====\n`;
+            // Füge eine Leerzeile nach der Dateiüberschrift hinzu
+            content += `\n// ==== ${relativePath} ====\n\n`;
             content += numberedContent;
-            content += '\n'; // Füge eine Leerzeile zwischen Dateien hinzu
+            content += '\n'; // Füge eine Leerzeile am Ende der Datei hinzu
         }
     }
 

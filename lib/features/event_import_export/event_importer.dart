@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../services/calendar_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/notification_service.dart'; // Import hinzufügen
 
 class EventImporter {
   final CalendarService _calendarService;
@@ -28,6 +29,13 @@ class EventImporter {
     if (importedEvents.isNotEmpty) {
       for (final event in importedEvents) {
         await _storageService.addEvent(event);
+        // NEU: Benachrichtigungen für importierte Events planen
+        final int notificationId = event.id.hashCode;
+        NotificationService().scheduleReminders(
+          notificationId,
+          event.title,
+          event.date,
+        );
       }
       await _onEventsImported(); // UI informieren, dass Daten neu geladen werden müssen
       _showSnackBar(

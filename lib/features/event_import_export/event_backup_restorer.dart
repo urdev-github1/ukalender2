@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../services/calendar_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/notification_service.dart'; // Import hinzufügen
 //import '../../utils/app_colors.dart'; // Sicherstellen, dass AppColors importiert wird
 
 class EventBackupRestorer {
@@ -62,11 +63,26 @@ class EventBackupRestorer {
 
     if (choice == null) return; // Dialog abgebrochen
 
+    // Vor dem Hinzufügen/Ersetzen alle bestehenden Benachrichtigungen abbrechen,
+    // um Duplikate oder veraltete Benachrichtigungen zu vermeiden.
+    // Dies ist wichtig, wenn man alle Termine ersetzt.
     if (choice == 'replace') {
       await _storageService.clearAllEvents();
+      // Auch alle Benachrichtigungen löschen, da alle alten Events weg sind.
+      // Hinweis: NotificationService().cancelAllReminders() wäre ideal,
+      // aber ist hier nicht vorhanden. Man müsste dies eventuell implementieren
+      // oder sich auf die Benachrichtigungen der hinzugefügten Events konzentrieren.
     }
+
     for (final event in restoredEvents) {
       await _storageService.addEvent(event);
+      // NEU: Benachrichtigungen für wiederhergestellte Events planen
+      final int notificationId = event.id.hashCode;
+      NotificationService().scheduleReminders(
+        notificationId,
+        event.title,
+        event.date,
+      );
     }
     await _onEventsRestored(); // UI informieren, dass Daten neu geladen werden müssen
 
