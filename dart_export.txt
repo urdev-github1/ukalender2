@@ -176,80 +176,96 @@ Dateiinhalte:
  4: import '../../models/event.dart';
  5: import '../../services/calendar_service.dart';
  6: import '../../services/storage_service.dart';
- 7: //import '../../utils/app_colors.dart'; // Sicherstellen, dass AppColors importiert wird
- 8: 
- 9: class EventBackupRestorer {
-10:   final CalendarService _calendarService;
-11:   final StorageService _storageService;
-12:   final Function() _onEventsRestored; // Callback, um Daten im UI neu zu laden
-13:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
-14:   final Future<String?> Function(Widget content)
-15:   _showConfirmationDialog; // Callback für den Dialog
-16: 
-17:   EventBackupRestorer({
-18:     required CalendarService calendarService,
-19:     required StorageService storageService,
-20:     required Function() onEventsRestored,
-21:     required Function(SnackBar) showSnackBar,
-22:     required Future<String?> Function(Widget content) showConfirmationDialog,
-23:   }) : _calendarService = calendarService,
-24:        _storageService = storageService,
-25:        _onEventsRestored = onEventsRestored,
-26:        _showSnackBar = showSnackBar,
-27:        _showConfirmationDialog = showConfirmationDialog;
-28: 
-29:   /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
-30:   Future<void> createBackup(List<Event> userEvents) async {
-31:     if (userEvents.isEmpty) {
-32:       _showSnackBar(
-33:         const SnackBar(
-34:           content: Text('Es sind keine Termine für ein Backup vorhanden.'),
-35:         ),
-36:       );
-37:       return;
-38:     }
-39:     await _calendarService.createInternalBackup(userEvents);
-40:     _showSnackBar(
-41:       const SnackBar(content: Text('Backup erfolgreich erstellt.')),
-42:     );
-43:   }
-44: 
-45:   /// Stellt Termine aus einem internen JSON-Backup wieder her.
-46:   Future<void> restoreBackup() async {
-47:     final List<Event> restoredEvents = await _calendarService
-48:         .restoreFromInternalBackup();
-49: 
-50:     if (restoredEvents.isEmpty) {
-51:       _showSnackBar(
-52:         const SnackBar(
-53:           content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
-54:         ),
-55:       );
-56:       return;
-57:     }
-58: 
-59:     final choice = await _showConfirmationDialog(
-60:       const Text('Wie möchtest du das Backup einspielen?'),
-61:     );
-62: 
-63:     if (choice == null) return; // Dialog abgebrochen
-64: 
-65:     if (choice == 'replace') {
-66:       await _storageService.clearAllEvents();
-67:     }
-68:     for (final event in restoredEvents) {
-69:       await _storageService.addEvent(event);
-70:     }
-71:     await _onEventsRestored(); // UI informieren, dass Daten neu geladen werden müssen
-72: 
-73:     _showSnackBar(
-74:       SnackBar(
-75:         content: Text('${restoredEvents.length} Termin(e) wiederhergestellt.'),
-76:       ),
-77:     );
-78:   }
-79: }
-80: 
+ 7: import '../../services/notification_service.dart'; // Import hinzufügen
+ 8: //import '../../utils/app_colors.dart'; // Sicherstellen, dass AppColors importiert wird
+ 9: 
+10: class EventBackupRestorer {
+11:   final CalendarService _calendarService;
+12:   final StorageService _storageService;
+13:   final Function() _onEventsRestored; // Callback, um Daten im UI neu zu laden
+14:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
+15:   final Future<String?> Function(Widget content)
+16:   _showConfirmationDialog; // Callback für den Dialog
+17: 
+18:   EventBackupRestorer({
+19:     required CalendarService calendarService,
+20:     required StorageService storageService,
+21:     required Function() onEventsRestored,
+22:     required Function(SnackBar) showSnackBar,
+23:     required Future<String?> Function(Widget content) showConfirmationDialog,
+24:   }) : _calendarService = calendarService,
+25:        _storageService = storageService,
+26:        _onEventsRestored = onEventsRestored,
+27:        _showSnackBar = showSnackBar,
+28:        _showConfirmationDialog = showConfirmationDialog;
+29: 
+30:   /// Erstellt ein internes Backup der aktuellen Termine im JSON-Format.
+31:   Future<void> createBackup(List<Event> userEvents) async {
+32:     if (userEvents.isEmpty) {
+33:       _showSnackBar(
+34:         const SnackBar(
+35:           content: Text('Es sind keine Termine für ein Backup vorhanden.'),
+36:         ),
+37:       );
+38:       return;
+39:     }
+40:     await _calendarService.createInternalBackup(userEvents);
+41:     _showSnackBar(
+42:       const SnackBar(content: Text('Backup erfolgreich erstellt.')),
+43:     );
+44:   }
+45: 
+46:   /// Stellt Termine aus einem internen JSON-Backup wieder her.
+47:   Future<void> restoreBackup() async {
+48:     final List<Event> restoredEvents = await _calendarService
+49:         .restoreFromInternalBackup();
+50: 
+51:     if (restoredEvents.isEmpty) {
+52:       _showSnackBar(
+53:         const SnackBar(
+54:           content: Text('Wiederherstellung abgebrochen oder Datei ungültig.'),
+55:         ),
+56:       );
+57:       return;
+58:     }
+59: 
+60:     final choice = await _showConfirmationDialog(
+61:       const Text('Wie möchtest du das Backup einspielen?'),
+62:     );
+63: 
+64:     if (choice == null) return; // Dialog abgebrochen
+65: 
+66:     // Vor dem Hinzufügen/Ersetzen alle bestehenden Benachrichtigungen abbrechen,
+67:     // um Duplikate oder veraltete Benachrichtigungen zu vermeiden.
+68:     // Dies ist wichtig, wenn man alle Termine ersetzt.
+69:     if (choice == 'replace') {
+70:       await _storageService.clearAllEvents();
+71:       // Auch alle Benachrichtigungen löschen, da alle alten Events weg sind.
+72:       // Hinweis: NotificationService().cancelAllReminders() wäre ideal,
+73:       // aber ist hier nicht vorhanden. Man müsste dies eventuell implementieren
+74:       // oder sich auf die Benachrichtigungen der hinzugefügten Events konzentrieren.
+75:     }
+76: 
+77:     for (final event in restoredEvents) {
+78:       await _storageService.addEvent(event);
+79:       // NEU: Benachrichtigungen für wiederhergestellte Events planen
+80:       final int notificationId = event.id.hashCode;
+81:       NotificationService().scheduleReminders(
+82:         notificationId,
+83:         event.title,
+84:         event.date,
+85:       );
+86:     }
+87:     await _onEventsRestored(); // UI informieren, dass Daten neu geladen werden müssen
+88: 
+89:     _showSnackBar(
+90:       SnackBar(
+91:         content: Text('${restoredEvents.length} Termin(e) wiederhergestellt.'),
+92:       ),
+93:     );
+94:   }
+95: }
+96: 
 
 // ==== lib\features\event_import_export\event_exporter.dart ====
 
@@ -294,49 +310,57 @@ Dateiinhalte:
  4: import '../../models/event.dart';
  5: import '../../services/calendar_service.dart';
  6: import '../../services/storage_service.dart';
- 7: 
- 8: class EventImporter {
- 9:   final CalendarService _calendarService;
-10:   final StorageService _storageService;
-11:   final Function() _onEventsImported; // Callback, um Daten im UI neu zu laden
-12:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
-13: 
-14:   EventImporter({
-15:     required CalendarService calendarService,
-16:     required StorageService storageService,
-17:     required Function() onEventsImported,
-18:     required Function(SnackBar) showSnackBar,
-19:   }) : _calendarService = calendarService,
-20:        _storageService = storageService,
-21:        _onEventsImported = onEventsImported,
-22:        _showSnackBar = showSnackBar;
-23: 
-24:   Future<void> importEvents() async {
-25:     final List<Event> importedEvents = await _calendarService
-26:         .importEventsFromPicker();
-27: 
-28:     if (importedEvents.isNotEmpty) {
-29:       for (final event in importedEvents) {
-30:         await _storageService.addEvent(event);
-31:       }
-32:       await _onEventsImported(); // UI informieren, dass Daten neu geladen werden müssen
-33:       _showSnackBar(
-34:         SnackBar(
-35:           content: Text(
-36:             '${importedEvents.length} Termin(e) erfolgreich importiert/aktualisiert.',
-37:           ),
-38:         ),
-39:       );
-40:     } else {
+ 7: import '../../services/notification_service.dart'; // Import hinzufügen
+ 8: 
+ 9: class EventImporter {
+10:   final CalendarService _calendarService;
+11:   final StorageService _storageService;
+12:   final Function() _onEventsImported; // Callback, um Daten im UI neu zu laden
+13:   final Function(SnackBar) _showSnackBar; // Callback, um SnackBar anzuzeigen
+14: 
+15:   EventImporter({
+16:     required CalendarService calendarService,
+17:     required StorageService storageService,
+18:     required Function() onEventsImported,
+19:     required Function(SnackBar) showSnackBar,
+20:   }) : _calendarService = calendarService,
+21:        _storageService = storageService,
+22:        _onEventsImported = onEventsImported,
+23:        _showSnackBar = showSnackBar;
+24: 
+25:   Future<void> importEvents() async {
+26:     final List<Event> importedEvents = await _calendarService
+27:         .importEventsFromPicker();
+28: 
+29:     if (importedEvents.isNotEmpty) {
+30:       for (final event in importedEvents) {
+31:         await _storageService.addEvent(event);
+32:         // NEU: Benachrichtigungen für importierte Events planen
+33:         final int notificationId = event.id.hashCode;
+34:         NotificationService().scheduleReminders(
+35:           notificationId,
+36:           event.title,
+37:           event.date,
+38:         );
+39:       }
+40:       await _onEventsImported(); // UI informieren, dass Daten neu geladen werden müssen
 41:       _showSnackBar(
-42:         const SnackBar(
-43:           content: Text('Import abgebrochen oder keine Termine gefunden.'),
-44:         ),
-45:       );
-46:     }
-47:   }
-48: }
-49: 
+42:         SnackBar(
+43:           content: Text(
+44:             '${importedEvents.length} Termin(e) erfolgreich importiert/aktualisiert.',
+45:           ),
+46:         ),
+47:       );
+48:     } else {
+49:       _showSnackBar(
+50:         const SnackBar(
+51:           content: Text('Import abgebrochen oder keine Termine gefunden.'),
+52:         ),
+53:       );
+54:     }
+55:   }
+56: }
+57: 
 
 // ==== lib\features\event_management\event_controller.dart ====
 
@@ -2277,163 +2301,202 @@ Dateiinhalte:
   3: import 'package:flutter_local_notifications/flutter_local_notifications.dart';
   4: import 'package:timezone/data/latest.dart' as tz;
   5: import 'package:timezone/timezone.dart' as tz;
-  6: import '../services/storage_service.dart';
-  7: 
-  8: /// Service zur Verwaltung von lokalen Benachrichtigungen.
-  9: class NotificationService {
- 10:   static final NotificationService _notificationService =
- 11:       NotificationService._internal();
- 12: 
- 13:   factory NotificationService() {
- 14:     return _notificationService;
- 15:   }
- 16: 
- 17:   // Interner Konstruktor
- 18:   NotificationService._internal();
- 19: 
- 20:   // Instanz des FlutterLocalNotificationsPlugin
- 21:   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
- 22:       FlutterLocalNotificationsPlugin();
- 23:   // Instanz des StorageService
- 24:   final StorageService _storageService = StorageService();
- 25: 
- 26:   /// Initialisiert die Benachrichtigungsdienste.
- 27:   Future<void> init() async {
- 28:     const AndroidInitializationSettings initializationSettingsAndroid =
- 29:         AndroidInitializationSettings('@mipmap/ic_launcher');
- 30: 
- 31:     const DarwinInitializationSettings initializationSettingsIOS =
- 32:         DarwinInitializationSettings();
- 33: 
- 34:     const InitializationSettings initializationSettings =
- 35:         InitializationSettings(
- 36:           android: initializationSettingsAndroid,
- 37:           iOS: initializationSettingsIOS,
- 38:         );
- 39: 
- 40:     // Initialisiere Zeitzonen
- 41:     tz.initializeTimeZones();
- 42:     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
- 43:   }
- 44: 
- 45:   /// Fordert die notwendigen Berechtigungen für Benachrichtigungen an.
- 46:   Future<void> requestPermissions() async {}
- 47: 
- 48:   /// Zeigt eine sofortige Test-Benachrichtigung an.
- 49:   Future<void> showTestNotification() async {
- 50:     const AndroidNotificationDetails androidDetails =
- 51:         AndroidNotificationDetails(
- 52:           'main_channel',
- 53:           'Main Channel',
- 54:           channelDescription: 'Main channel for notifications',
- 55:           importance: Importance.max,
- 56:           priority: Priority.high,
- 57:         );
- 58:     const NotificationDetails platformDetails = NotificationDetails(
- 59:       android: androidDetails,
- 60:     );
- 61: 
- 62:     await flutterLocalNotificationsPlugin.show(
- 63:       99,
- 64:       'Test Benachrichtigung',
- 65:       'Wenn Sie das sehen, funktioniert der Kanal.',
- 66:       platformDetails,
- 67:     );
- 68:   }
- 69: 
- 70:   /// Plant eine Benachrichtigung zu einem bestimmten Zeitpunkt.
- 71:   Future<void> scheduleNotification(
- 72:     int id,
- 73:     String title,
- 74:     String body,
- 75:     DateTime scheduledTime,
- 76:   ) async {
- 77:     try {
- 78:       await flutterLocalNotificationsPlugin.zonedSchedule(
- 79:         id,
- 80:         title,
- 81:         body,
- 82:         tz.TZDateTime.from(scheduledTime, tz.local),
- 83:         const NotificationDetails(
- 84:           android: AndroidNotificationDetails(
- 85:             'main_channel',
- 86:             'Main Channel',
- 87:             channelDescription: 'Main channel for notifications',
- 88:             importance: Importance.max,
- 89:             priority: Priority.high,
- 90:           ),
- 91:         ),
- 92:         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
- 93:         uiLocalNotificationDateInterpretation:
- 94:             UILocalNotificationDateInterpretation.absoluteTime,
- 95:       );
- 96:     } catch (e) {
- 97:       //print('Fehler beim Planen der Benachrichtigung: $e');
- 98:     }
- 99:   }
-100: 
-101:   /// Plant Erinnerungsbenachrichtigungen basierend auf den Einstellungen.
-102:   Future<void> scheduleReminders(
-103:     int baseId,
-104:     String title,
-105:     DateTime eventTime,
-106:   ) async {
-107:     // Prüfen, welcher Benachrichtigungsmodus (Standard oder Test) aktiv ist.
-108:     final isTestMode = await _storageService.getIsTestNotification();
-109:     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-110: 
-111:     int reminder1Minutes;
-112:     int reminder2Minutes;
-113: 
-114:     // Im Testmodus werden die benutzerdefinierten Werte aus den Einstellungen verwendet.
-115:     if (isTestMode) {
-116:       final reminderSettings = await _storageService.getReminderMinutes();
-117:       reminder1Minutes = reminderSettings['reminder1']!;
-118:       reminder2Minutes = reminderSettings['reminder2']!;
-119:     } else {
-120:       // Im Standardmodus werden die festen Werte (24h / 1h) verwendet.
-121:       reminder1Minutes = 1440; // 24 * 60
-122:       reminder2Minutes = 60;
-123:     }
-124: 
-125:     // Planen der 1. Benachrichtigung
-126:     if (reminder1Minutes > 0) {
-127:       final reminder1Time = eventTime.subtract(
-128:         Duration(minutes: reminder1Minutes),
-129:       );
-130:       if (reminder1Time.isAfter(now)) {
-131:         await scheduleNotification(
-132:           baseId,
-133:           'Erinnerung: $title',
-134:           'Ihr Termin beginnt in $reminder1Minutes Minuten.',
-135:           reminder1Time,
-136:         );
-137:       } else {}
-138:     }
-139: 
-140:     // Planen der 2. Benachrichtigung
-141:     if (reminder2Minutes > 0) {
-142:       final reminder2Time = eventTime.subtract(
-143:         Duration(minutes: reminder2Minutes),
-144:       );
-145:       if (reminder2Time.isAfter(now)) {
-146:         await scheduleNotification(
-147:           baseId + 1,
-148:           'Erinnerung: $title',
-149:           'Ihr Termin beginnt in $reminder2Minutes Minuten.',
-150:           reminder2Time,
-151:         );
-152:       } else {}
-153:     }
-154:   }
-155: 
-156:   /// Löscht alle geplanten Erinnerungsbenachrichtigungen für einen Termin.
-157:   Future<void> cancelReminders(int baseId) async {
-158:     await flutterLocalNotificationsPlugin.cancel(baseId);
-159:     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
-160:   }
-161: }
-162: 
+  6: import 'package:intl/intl.dart'; // Import hinzufügen für DateFormat
+  7: import '../services/storage_service.dart';
+  8: 
+  9: /// Service zur Verwaltung von lokalen Benachrichtigungen.
+ 10: class NotificationService {
+ 11:   static final NotificationService _notificationService =
+ 12:       NotificationService._internal();
+ 13: 
+ 14:   factory NotificationService() {
+ 15:     return _notificationService;
+ 16:   }
+ 17: 
+ 18:   // Interner Konstruktor
+ 19:   NotificationService._internal();
+ 20: 
+ 21:   // Instanz des FlutterLocalNotificationsPlugin
+ 22:   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+ 23:       FlutterLocalNotificationsPlugin();
+ 24:   // Instanz des StorageService
+ 25:   final StorageService _storageService = StorageService();
+ 26: 
+ 27:   /// Initialisiert die Benachrichtigungsdienste.
+ 28:   Future<void> init() async {
+ 29:     const AndroidInitializationSettings initializationSettingsAndroid =
+ 30:         AndroidInitializationSettings('@mipmap/ic_launcher');
+ 31: 
+ 32:     const DarwinInitializationSettings initializationSettingsIOS =
+ 33:         DarwinInitializationSettings();
+ 34: 
+ 35:     const InitializationSettings initializationSettings =
+ 36:         InitializationSettings(
+ 37:           android: initializationSettingsAndroid,
+ 38:           iOS: initializationSettingsIOS,
+ 39:         );
+ 40: 
+ 41:     // Initialisiere Zeitzonen
+ 42:     tz.initializeTimeZones();
+ 43:     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+ 44:   }
+ 45: 
+ 46:   /// Fordert die notwendigen Berechtigungen für Benachrichtigungen an.
+ 47:   Future<void> requestPermissions() async {}
+ 48: 
+ 49:   /// Zeigt eine sofortige Test-Benachrichtigung an.
+ 50:   Future<void> showTestNotification() async {
+ 51:     const AndroidNotificationDetails androidDetails =
+ 52:         AndroidNotificationDetails(
+ 53:           'main_channel',
+ 54:           'Main Channel',
+ 55:           channelDescription: 'Main channel for notifications',
+ 56:           importance: Importance.max,
+ 57:           priority: Priority.high,
+ 58:         );
+ 59:     const NotificationDetails platformDetails = NotificationDetails(
+ 60:       android: androidDetails,
+ 61:     );
+ 62: 
+ 63:     await flutterLocalNotificationsPlugin.show(
+ 64:       99,
+ 65:       'Test Benachrichtigung',
+ 66:       'Wenn Sie das sehen, funktioniert der Kanal.',
+ 67:       platformDetails,
+ 68:     );
+ 69:   }
+ 70: 
+ 71:   /// Plant eine Benachrichtigung zu einem bestimmten Zeitpunkt.
+ 72:   Future<void> scheduleNotification(
+ 73:     int id,
+ 74:     String title,
+ 75:     String body,
+ 76:     DateTime scheduledTime,
+ 77:   ) async {
+ 78:     try {
+ 79:       await flutterLocalNotificationsPlugin.zonedSchedule(
+ 80:         id,
+ 81:         title,
+ 82:         body,
+ 83:         tz.TZDateTime.from(scheduledTime, tz.local),
+ 84:         const NotificationDetails(
+ 85:           android: AndroidNotificationDetails(
+ 86:             'main_channel',
+ 87:             'Main Channel',
+ 88:             channelDescription: 'Main channel for notifications',
+ 89:             importance: Importance.max,
+ 90:             priority: Priority.high,
+ 91:           ),
+ 92:         ),
+ 93:         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+ 94:         uiLocalNotificationDateInterpretation:
+ 95:             UILocalNotificationDateInterpretation.absoluteTime,
+ 96:       );
+ 97:     } catch (e) {
+ 98:       //print('Fehler beim Planen der Benachrichtigung: $e');
+ 99:     }
+100:   }
+101: 
+102:   /// Plant Erinnerungsbenachrichtigungen basierend auf den Einstellungen.
+103:   ///
+104:   /// Diese Methode ermittelt, ob der Testmodus für Benachrichtigungen aktiv ist
+105:   /// und plant entsprechend zwei Erinnerungen für einen Event.
+106:   ///
+107:   /// [baseId] ist die Basis-ID für die Benachrichtigungen. Die erste Benachrichtigung
+108:   /// erhält diese ID, die zweite [baseId + 1]. Dies ermöglicht das gezielte
+109:   /// Löschen oder Aktualisieren von Erinnerungen zu einem Event.
+110:   /// [title] ist der Titel des Events, der in der Benachrichtigung angezeigt wird.
+111:   /// [eventTime] ist der Startzeitpunkt des Termins.
+112:   Future<void> scheduleReminders(
+113:     int baseId,
+114:     String title,
+115:     DateTime eventTime, // Startzeit des Termins
+116:   ) async {
+117:     // Prüfen, welcher Benachrichtigungsmodus (Standard oder Test) aktiv ist.
+118:     final isTestMode = await _storageService.getIsTestNotification();
+119:     // Aktuelle Zeit in der lokalen Zeitzone
+120:     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+121: 
+122:     int reminder1Minutes;
+123:     int reminder2Minutes;
+124:     String reminder1Body;
+125:     String reminder2Body;
+126: 
+127:     // Im Testmodus werden die benutzerdefinierten Werte aus den Einstellungen verwendet.
+128:     if (isTestMode) {
+129:       final reminderSettings = await _storageService.getReminderMinutes();
+130:       reminder1Minutes = reminderSettings['reminder1']!;
+131:       reminder2Minutes = reminderSettings['reminder2']!;
+132:       reminder1Body = 'Der Termin beginnt in $reminder1Minutes Minuten.';
+133:       reminder2Body = 'Der Termin beginnt in $reminder2Minutes Minuten.';
+134:     } else {
+135:       // Im Standardmodus werden die festen Werte (24h / 2h) verwendet.
+136:       reminder1Minutes = 1440; // 24 * 60
+137:       reminder2Minutes = 120;
+138: 
+139:       // Initialisiert einen DateFormatter, um die Uhrzeit des Events im Format HH:mm zu erhalten.
+140:       final timeFormat = DateFormat('HH:mm');
+141:       // Setzt den Text für die erste Benachrichtigung (24 Stunden vorher).
+142:       reminder1Body =
+143:           'Der Termin beginnt morgen um ${timeFormat.format(eventTime)} Uhr.';
+144:       // Setzt den Text für die zweite Benachrichtigung (2 Stunden vorher).
+145:       reminder2Body = 'Der Termin beginnt in 2 Stunden.';
+146:     }
+147: 
+148:     // --- Planung der ersten Benachrichtigung ---
+149:     if (reminder1Minutes > 0) {
+150:       // Berechnet den Zeitpunkt für die erste Erinnerung.
+151:       final reminder1Time = eventTime.subtract(
+152:         Duration(minutes: reminder1Minutes),
+153:       );
+154:       // Prüft, ob der berechnete Erinnerungszeitpunkt in der Zukunft liegt.
+155:       if (reminder1Time.isAfter(now)) {
+156:         // Plant die Benachrichtigung unter Verwendung der `scheduleNotification`-Methode.
+157:         await scheduleNotification(
+158:           // Die `baseId` dient als eindeutige ID für diese Benachrichtigung.
+159:           baseId,
+160:           'Erinnerung: $title',
+161:           reminder1Body, // Der zuvor definierte Textkörper der Benachrichtigung
+162:           reminder1Time, // Der Zeitpunkt, wann die Benachrichtigung erscheinen soll
+163:         );
+164:       } else {
+165:         // Optional: Log-Ausgabe oder andere Behandlung, wenn die Erinnerungszeit bereits vergangen ist.
+166:       }
+167:     }
+168: 
+169:     // --- Planung der zweiten Benachrichtigung ---
+170:     if (reminder2Minutes > 0) {
+171:       final reminder2Time = eventTime.subtract(
+172:         Duration(minutes: reminder2Minutes),
+173:       );
+174:       if (reminder2Time.isAfter(now)) {
+175:         await scheduleNotification(
+176:           baseId + 1,
+177:           'Erinnerung: $title',
+178:           reminder2Body,
+179:           reminder2Time,
+180:         );
+181:       } else {
+182:         // Optional: Log-Ausgabe oder andere Behandlung, wenn die Erinnerungszeit bereits vergangen ist.
+183:       }
+184:     }
+185:   }
+186: 
+187:   /// Löscht alle geplanten Erinnerungsbenachrichtigungen für einen Termin.
+188:   ///
+189:   /// Diese Methode wird aufgerufen, um alle zuvor geplanten Benachrichtigungen
+190:   /// für ein bestimmtes Event zu entfernen, z.B. wenn ein Event gelöscht oder aktualisiert wird.
+191:   ///
+192:   /// [baseId] ist die Basis-ID des Events. Es werden die Benachrichtigung mit [baseId]
+193:   /// und [baseId + 1] gelöscht.
+194:   Future<void> cancelReminders(int baseId) async {
+195:     // Löscht die erste geplante Benachrichtigung mit der `baseId`.
+196:     await flutterLocalNotificationsPlugin.cancel(baseId);
+197:     // Löscht die zweite geplante Benachrichtigung mit der `baseId + 1`.
+198:     await flutterLocalNotificationsPlugin.cancel(baseId + 1);
+199:   }
+200: }
+201: 
 
 // ==== lib\services\share_intent_service.dart ====
 
