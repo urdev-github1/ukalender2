@@ -142,10 +142,12 @@ class NotificationService {
       reminder1Body =
           'Der Termin beginnt morgen um ${timeFormat.format(eventTime)} Uhr.';
       // Setzt den Text für die zweite Benachrichtigung (2 Stunden vorher).
-      reminder2Body = 'Der Termin beginnt in 2 Stunden.';
+      reminder2Body =
+          'Der Termin beginnt in 2 Std. um ${timeFormat.format(eventTime)} Uhr.';
     }
 
     // --- Planung der ersten Benachrichtigung ---
+    // Überprüft, ob eine erste Erinnerung geplant werden soll.
     if (reminder1Minutes > 0) {
       // Berechnet den Zeitpunkt für die erste Erinnerung.
       final reminder1Time = eventTime.subtract(
@@ -167,6 +169,7 @@ class NotificationService {
     }
 
     // --- Planung der zweiten Benachrichtigung ---
+    // Überprüft, ob eine zweite Erinnerung geplant werden soll.
     if (reminder2Minutes > 0) {
       final reminder2Time = eventTime.subtract(
         Duration(minutes: reminder2Minutes),
