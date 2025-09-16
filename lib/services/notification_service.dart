@@ -159,7 +159,7 @@ class NotificationService {
         await scheduleNotification(
           // Die `baseId` dient als eindeutige ID für diese Benachrichtigung.
           baseId,
-          'Erinnerung: $title',
+          title,
           reminder1Body, // Der zuvor definierte Textkörper der Benachrichtigung
           reminder1Time, // Der Zeitpunkt, wann die Benachrichtigung erscheinen soll
         );
@@ -177,7 +177,7 @@ class NotificationService {
       if (reminder2Time.isAfter(now)) {
         await scheduleNotification(
           baseId + 1,
-          'Erinnerung: $title',
+          title,
           reminder2Body,
           reminder2Time,
         );
