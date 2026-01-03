@@ -50,7 +50,14 @@ class CalendarMainBody extends StatelessWidget {
         // Hier wird das Padding weiter angepasst, um den Kalenderinhalt anzuheben
         // Experimentieren Sie mit diesem Wert, um den besten Abstand zu finden.
         // Ein Wert von -45.0 ist ein Startpunkt, da kToolbarHeight etwa 56.0 ist.
-        top: MediaQuery.of(context).padding.top + kToolbarHeight - 70.0,
+        //
+        // Fehlerbehebung für Geräte mit Display-Notch:
+        // Statt: top: MediaQuery.of(context).padding.top + kToolbarHeight - 70.0,
+        // Nutze clamp(), um sicherzustellen, dass der Wert nie unter 0 fällt:
+        top: (MediaQuery.of(context).padding.top + kToolbarHeight - 70.0).clamp(
+          0.0,
+          double.infinity,
+        ),
       ),
       child: SfCalendar(
         controller: calendarController,

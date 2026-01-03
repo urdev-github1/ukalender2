@@ -140,7 +140,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
 
       _allEvents = [...displayEvents, ..._holidays];
-      _dataSource = EventDataSource(_allEvents);
+
+      // --- ÄNDERUNG HIER ---
+      // Nicht: _dataSource = EventDataSource(_allEvents);
+      // Sondern die bestehende Quelle aktualisieren:
+      _dataSource.appointments = _allEvents;
       _dataSource.notifyListeners(CalendarDataSourceAction.reset, _allEvents);
     });
   }
@@ -223,9 +227,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _onCalendarViewChanged(ViewChangedDetails details) {
     final newYear = details.visibleDates.first.year;
     if (newYear != _currentYear) {
-      setState(() {
-        _currentYear = newYear;
-        _loadHolidaysForYear(newYear);
+      // Sicherstellen, dass das Update erst nach dem aktuellen Frame passiert
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _currentYear = newYear;
+            _loadHolidaysForYear(newYear);
+          });
+        }
       });
     }
   }
